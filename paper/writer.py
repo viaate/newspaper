@@ -204,6 +204,14 @@ def _facts(ctx, style):
     }, indent=1)
 
 
+def client(cfg):
+    """An Anthropic client. Keys made at the organization level (not inside a workspace)
+    must say which workspace to bill; ANTHROPIC_WORKSPACE_ID does that."""
+    s = cfg["secrets"]
+    headers = {"anthropic-workspace-id": s["ANTHROPIC_WORKSPACE_ID"]} if s.get("ANTHROPIC_WORKSPACE_ID") else None
+    return anthropic.Anthropic(api_key=s["ANTHROPIC_API_KEY"], default_headers=headers)
+
+
 def write(cfg, ctx, style, print_time):
     """An Edition from Claude, or None if there's no key or the call fails."""
     key = cfg["secrets"]["ANTHROPIC_API_KEY"]
@@ -216,7 +224,7 @@ def write(cfg, ctx, style, print_time):
         threshold=cfg["grades"]["threshold"], comic_style=style,
     )
     try:
-        response = anthropic.Anthropic(api_key=key).messages.parse(
+        response = client(cfg).messages.parse(
             model=MODEL,
             max_tokens=16000,
             system=system,

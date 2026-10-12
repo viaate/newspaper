@@ -5,7 +5,6 @@ import shutil
 import subprocess
 from datetime import date
 
-import anthropic
 import requests
 
 from . import comic, writer
@@ -49,7 +48,7 @@ def run(cfg):
         return f"signed in; {len(sections)} classes"
 
     def claude_check():
-        model = anthropic.Anthropic(api_key=s["ANTHROPIC_API_KEY"]).models.retrieve(writer.MODEL)
+        model = writer.client(cfg).models.retrieve(writer.MODEL)
         return f"key works; {model.display_name} available"
 
     def gemini_check():
