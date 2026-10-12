@@ -28,7 +28,12 @@ def _try(name, fn, missing=None):
         mark, detail = result if isinstance(result, tuple) else (OK, result)
         _line(mark, name, detail)
     except Exception as e:  # report and keep checking the rest
-        _line(BAD, name, f"{type(e).__name__}: {str(e)[:110]}")
+        # API errors are worth reading in full; none of them include a key.
+        message = getattr(e, "message", None) or str(e)
+        body = getattr(e, "body", None)
+        if isinstance(body, dict) and isinstance(body.get("error"), dict):
+            message = body["error"].get("message", message)
+        _line(BAD, name, f"{type(e).__name__}: {message}")
 
 
 def run(cfg):

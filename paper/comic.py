@@ -9,6 +9,7 @@ After that, only the cartoon avatar is sent to Gemini each day, never the photos
 """
 
 import base64
+import re
 import shutil
 from io import BytesIO
 from pathlib import Path
@@ -61,9 +62,17 @@ def _model(cfg, key):
     ]
     if not names:
         raise RuntimeError("no Gemini image model is available to this key")
-    # Prefer the fast "flash" image models; newest name sorts last.
-    flash = sorted(n for n in names if "flash" in n)
-    return (flash or sorted(names))[-1]
+    # Newest version first; within it prefer flash (fast, cheap) over pro, the full model
+    # over "lite" (which keeps faces and lettering less well), and stable over preview.
+    def rank(name):
+        version = re.search(r"gemini-(\d+(?:\.\d+)?)", name)
+        return (
+            float(version.group(1)) if version else 0.0,
+            "flash" in name,
+            "lite" not in name,
+            "preview" not in name,
+        )
+    return max(names, key=rank)
 
 
 def _generate(cfg, prompt, images=(), aspect="21:9"):
