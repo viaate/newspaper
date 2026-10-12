@@ -9,7 +9,7 @@ import anthropic
 import requests
 
 from . import comic, writer
-from .sources import calendars, lunch, schoology, sports, weather
+from .sources import calendars, gmail, lunch, schoology, sports, weather
 
 OK, BAD, SKIP = "✓", "✗", "–"
 
@@ -53,11 +53,9 @@ def run(cfg):
     def gmail_check():
         imap = imaplib.IMAP4_SSL("imap.gmail.com")
         imap.login(s["GMAIL_ADDRESS"], s["GMAIL_APP_PASSWORD"].replace(" ", ""))
-        imap.select("INBOX", readonly=True)
-        _, found = imap.search(None, "X-GM-RAW", f'"subject:({cfg["email"]["digest_subject"]}) newer_than:2d"')
+        found = gmail.latest_digest(imap, cfg["email"]["digest_subject"])
         imap.logout()
-        digest = "school digest found" if found[0].split() else "no school digest in the last 2 days yet"
-        return f"signed in; {digest}"
+        return f"signed in; {'school digest found' if found else 'no school digest in the last 2 days yet'}"
 
     def calendar_check():
         events = calendars.fetch(cfg, today)

@@ -10,7 +10,11 @@
  *   1. Go to https://script.google.com and click New project.
  *   2. Replace everything in the editor with this file. Set PERSONAL_EMAIL below.
  *   3. Pick `setup` in the function menu and click Run. Approve the permissions.
- *   4. Pick `sendDigest` and click Run once to test. Check your personal inbox.
+ *   4. Pick `sendDigest` and click Run once to test. Check your personal Gmail.
+ *
+ * To keep the digests out of your personal inbox, add a filter there: search for
+ * subject "Olivia Times school digest", Create filter, tick "Skip the Inbox (Archive it)"
+ * and "Mark as read". The paper looks for the digest in All Mail, so archived is fine.
  */
 
 const PERSONAL_EMAIL = 'you@gmail.com';            // where the digest goes

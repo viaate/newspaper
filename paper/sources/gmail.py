@@ -87,6 +87,24 @@ def _search(imap, query, limit):
         }
 
 
+def _all_mail(imap):
+    """Name of Gmail's All Mail folder (it's translated in some languages), found by its \\All flag."""
+    _, boxes = imap.list()
+    for line in boxes:
+        if line and b"\\All" in line:
+            name = re.search(rb'"([^"]+)"\s*$', line) or re.search(rb"(\S+)\s*$", line)
+            return name.group(1).decode()
+    return "INBOX"
+
+
+def latest_digest(imap, subject):
+    """The newest school digest from the last two days, archived or not, or None."""
+    imap.select(f'"{_all_mail(imap)}"', readonly=True)
+    digests = [m for m in _search(imap, f"subject:({subject}) newer_than:2d", 5)
+               if m["subject"].startswith(subject)]
+    return max(digests, key=lambda m: m["when"] or datetime.min.replace(tzinfo=timezone.utc), default=None)
+
+
 def fetch(cfg, limit=40):
     """{"emails": recent mail plus the school digest, "packages": shipping notices}."""
     s = cfg["secrets"]
@@ -102,15 +120,12 @@ def fetch(cfg, limit=40):
         imap.select("INBOX", readonly=True)
         days = max(1, -(-hours // 24))
 
-        mail, digests = [], []
-        for m in _search(imap, f"newer_than:{days}d -category:promotions -category:social", limit):
-            if digest_subject and m["subject"].startswith(digest_subject):
-                digests.append(m)
-            elif not (m["when"] and m["when"].tzinfo and m["when"] < since):
-                mail.append({**m, "body": m["body"][:1200]})
-        if digests:  # only the newest school digest
-            newest = max(digests, key=lambda m: m["when"] or datetime.min.replace(tzinfo=timezone.utc))
-            mail.extend(_unpack_digest(newest["body"]) or [])
+        mail = [
+            {**m, "body": m["body"][:1200]}
+            for m in _search(imap, f"newer_than:{days}d -category:promotions -category:social", limit)
+            if not (digest_subject and m["subject"].startswith(digest_subject))
+            and not (m["when"] and m["when"].tzinfo and m["when"] < since)
+        ]
 
         # Local time, so "arriving tomorrow" sent last night reads correctly.
         tz = ZoneInfo(cfg["paper"]["timezone"])
@@ -118,6 +133,12 @@ def fetch(cfg, limit=40):
         for m in packages:
             if m["when"] and m["when"].tzinfo:
                 m["when"] = m["when"].astimezone(tz)
+
+        # The school digest is usually filtered out of the inbox, so look in All Mail.
+        if digest_subject:
+            digest = latest_digest(imap, digest_subject)
+            if digest:
+                mail.extend(_unpack_digest(digest["body"]) or [])
         return {"emails": mail, "packages": packages}
     finally:
         try:

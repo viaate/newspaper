@@ -58,7 +58,10 @@ run the script again.
 **School email.** The school account doesn't allow outside apps, so the school account
 forwards a digest itself: follow the steps at the top of
 [`apps_script/school_digest.gs`](apps_script/school_digest.gs). It emails the day's school
-mail to your personal Gmail at about 5:30 a.m., and the paper reads it from there.
+mail to your personal Gmail at about 5:30 a.m., and the paper reads it from there. To keep
+the digests out of your inbox, add a filter in your personal Gmail: search for the subject
+"Olivia Times school digest", choose Create filter, and tick "Skip the Inbox (Archive it)" and
+"Mark as read". The paper finds them in All Mail either way.
 
 **Packages.** Shipping emails from the past week (Amazon, UPS, FedEx, USPS and shops) are read
 from your personal Gmail, and the paper lists what's arriving today. Signing up for USPS
