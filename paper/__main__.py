@@ -16,7 +16,7 @@ from pathlib import Path
 
 from . import comic, config, grades, images, printer, puzzles, render, writer
 from .dates import fmt
-from .sources import calendars, gmail, news, schoology, weather
+from .sources import calendars, gmail, lunch, news, schoology, sports, weather
 
 SAMPLE = Path(__file__).resolve().parent / "sample.json"
 
@@ -110,10 +110,21 @@ def build(cfg, sample=False, today=None, png=False):
         notes.append("News was unavailable this morning.")
         print(f"news: {e}")
 
+    menu = chiefs = None
+    try:
+        menu = lunch.fetch(cfg, today)
+    except Exception as e:
+        print(f"lunch: {e}")
+    try:
+        chiefs = sports.last_night(cfg, today)
+    except Exception as e:
+        print(f"sports: {e}")
+
     sample_copy, packages, events = None, [], []
     if sample:
         courses, week, mail, sample_copy = _load_sample(today)
-        notes.append("Preview: grades, assignments, email, packages and page-3 features are sample data.")
+        chiefs = chiefs or json.loads(SAMPLE.read_text(encoding="utf-8")).get("chiefs")
+        notes.append("Preview: grades, assignments, email, packages, the Chiefs score and page-3 features are sample data.")
     else:
         courses, week, mail = [], [], []
         if cfg["secrets"]["SCHOOLOGY_KEY"]:
@@ -142,6 +153,7 @@ def build(cfg, sample=False, today=None, png=False):
     ctx = {
         "today": today, "threshold": threshold, "courses": courses, "week": week,
         "emails": mail, "packages": packages, "calendar": events, "weather": forecast, "news": stories,
+        "lunch": menu, "chiefs": chiefs,
     }
 
     edition = writer.write(cfg, ctx, style, print_time)
@@ -168,6 +180,9 @@ def build(cfg, sample=False, today=None, png=False):
         "paper": p,
         "print_time": print_time,
         "countdowns": _countdowns(cfg, today),
+        "lunch": menu,
+        "campus": cfg.get("lunch", {}).get("campus", "").replace("-", " ").title(),
+        "chiefs": chiefs,
         "issue": max(1, (today - first).days + 1),
         "today": today,
         "edition": edition,

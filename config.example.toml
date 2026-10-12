@@ -30,6 +30,15 @@ domain = "pembroke.schoology.com"
 digest_subject = "Olivia Times school digest"
 lookback_hours = 24
 
+[lunch]
+# Today's menu from the school dining page; campus is "ward-parkway" or "wornall".
+url = "https://www.pembrokehill.org/school-life/lunch-program/lunch-menu"
+campus = "ward-parkway"
+
+[sports]
+# Last night's score, only on mornings after a game. ESPN team code; "" turns it off.
+nfl_team = "kc"
+
 [news]
 tech_feeds = [
   "https://www.theverge.com/rss/index.xml",

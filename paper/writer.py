@@ -82,6 +82,7 @@ class Edition(BaseModel):
     today: list[AgendaItem]
     needs_a_look: list[Notice]
     packages: list[Package]
+    lunch_line: str
     weather_line: str
     tech: list[Story]
     local: list[Brief]
@@ -121,6 +122,9 @@ today's date: an email from yesterday saying "arriving tomorrow" means today; sk
 already delivered before today or due another day. store is the shop or carrier, item a plain \
 name of at most 6 words, status like "Arriving today" or "Out for delivery", when the delivery \
 window if given (like "by 9 P.M."), else "". Empty list if nothing is coming today.
+- lunch_line: from lunch, one short sentence, at most 18 words, picking the best-sounding \
+option (the full menu prints beside it). If there's no school today, say so and lead the front \
+page with it. Empty string if there's no menu.
 - weather_line: one sentence about today's weather, ending with what to wear or bring \
 (a jacket, an umbrella) when it matters, plus anything notable later this week.
 
@@ -191,6 +195,8 @@ def _facts(ctx, style):
             "sent": fmt(m["when"], "%A %b %-d, %I:%M %p") if m.get("when") else m["date"],
             "body": m["body"][:700],
         } for m in ctx["packages"]],
+        "lunch": ctx["lunch"],
+        "chiefs_last_night": ctx["chiefs"],
         "comic_style": style,
         "tech_news": stories(ctx["news"]["tech"], 30),
         "local_news": stories(ctx["news"]["local"], 20),
@@ -262,6 +268,11 @@ def _round_robin(items, count):
     return picks + [n for n in items if n not in picks][: count - len(picks)]
 
 
+def _lunch_line(menu):
+    # The full menu prints anyway; without Claude there's no pick to add.
+    return "No school today." if menu and menu["no_school"] else ""
+
+
 def fallback(cfg, ctx, style, sample_copy=None):
     """Plain, template-written edition used when Claude isn't available."""
     threshold = cfg["grades"]["threshold"]
@@ -320,6 +331,7 @@ def fallback(cfg, ctx, style, sample_copy=None):
                         for n in _round_robin(ctx["news"]["world"], 4)]
     if edition.get("comic") and not edition["comic"].get("title"):
         edition["comic"]["title"] = comic_art.fallback_title(style, reader)
+    edition.setdefault("lunch_line", _lunch_line(ctx["lunch"]))
     edition.setdefault(
         "weather_line",
         f"{forecast['summary']}, high {forecast['high']}°, low {forecast['low']}°, "

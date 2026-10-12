@@ -283,5 +283,17 @@
         "when": ""
       }
     ]
+  },
+  "chiefs": {
+    "team": "Chiefs",
+    "opponent": "Raiders",
+    "score": "30",
+    "opponent_score": "27",
+    "result": "W",
+    "home": false,
+    "week": "Week 4",
+    "record": "4-0",
+    "standing": "1st in AFC West",
+    "weekday": "Sunday"
   }
 }

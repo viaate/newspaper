@@ -1,4 +1,5 @@
 anthropic>=1.0
+beautifulsoup4>=4.12
 feedparser>=6.0
 icalendar>=6.0
 jinja2>=3.1

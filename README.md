@@ -5,7 +5,7 @@ bed, so the day starts without a phone. Inspired by Karen X. Cheng's newspaper b
 
 | Page | What's on it |
 |---|---|
-| **A1 · Front page** | A headline about your day; today's agenda (calendar events, what's due, anything an email says is today); Grade Watch (classes under 92.5 flagged, with what would fix them and the change since yesterday); the week ahead; weather with what to wear; Snow Day Watch; packages arriving today; emails that need a look; countdowns |
+| **A1 · Front page** | A headline about your day; today's agenda (calendar events, what's due, anything an email says is today); Grade Watch (classes under 92.5 flagged, with what would fix them and the change since yesterday); the week ahead; today's school lunch (Ward Parkway); weather with what to wear; Snow Day Watch; packages arriving today; emails that need a look; last night's Chiefs score (only after a game); countdowns |
 | **A2 · The Briefing** | Five tech stories with newsprint photos, Kansas City news, and the world in brief |
 | **A3 · Puzzles & Funnies** | A black-and-white daily comic starring your cartoon avatar, drawn in a different adult cartoon's style each day; a crossword built from your week; a "Dear Olivia" advice column; a jumble; classifieds; yesterday's answers |
 
@@ -21,7 +21,7 @@ writer is told never to invent or round them.
 | Paper and toner | About 3 sheets a day, roughly $2–3 a month |
 | Writing (Claude Haiku 5.5) | About a penny a day; $20 of credit lasts years |
 | Comic (Gemini image model) | About 5–10¢ a comic, so $2–3 a month; optional |
-| Weather, news, calendar, Schoology | Free |
+| Weather, news, calendar, lunch menu, Chiefs scores, Schoology | Free |
 
 ## Setup
 
@@ -111,6 +111,8 @@ paper/
   sources/gmail.py      recent mail and shipping notices over IMAP, plus the school digest
   sources/calendars.py  events from private iCal links
   sources/weather.py    Open-Meteo, falling back to weather.gov
+  sources/lunch.py      today's menu from the Pembroke Hill dining page
+  sources/sports.py     yesterday's Chiefs game from ESPN's public feed
   sources/news.py       The Verge, TechCrunch, Hacker News, KCUR, KSHB, BBC
   grades.py             under-92.5 flags and day-over-day changes
   writer.py             Claude Haiku 5.5 writes all three pages (structured output)
@@ -125,5 +127,5 @@ the footer. If Claude can't be reached, a plainer version of the paper is laid o
 raw data. `print` builds the paper first if this morning's isn't there, so it never reprints
 yesterday's.
 
-The paper's name, the grade threshold, print times, countdowns, news feeds and the list of
-cartoon styles are all in `config.toml`.
+The paper's name, the grade threshold, print times, countdowns, the lunch campus, the NFL
+team, news feeds and the list of cartoon styles are all in `config.toml`.
