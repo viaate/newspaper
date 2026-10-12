@@ -6,6 +6,7 @@
     python -m paper run                # build, then print
     python -m paper avatar make PHOTOS # draw avatar options A-D for the comic
     python -m paper avatar pick B      # keep option B
+    python -m paper check              # test every key and connection
 """
 
 import argparse
@@ -208,7 +209,7 @@ def build(cfg, sample=False, today=None, png=False):
 
 def main():
     ap = argparse.ArgumentParser(description="The morning paper.")
-    ap.add_argument("command", choices=["build", "print", "run", "avatar"])
+    ap.add_argument("command", choices=["build", "print", "run", "avatar", "check"])
     ap.add_argument("args", nargs="*", help="for avatar: make PHOTO... | pick LETTER")
     ap.add_argument("--sample", action="store_true", help="use sample grades, email and features")
     ap.add_argument("--png", action="store_true", help="also save PNGs of the pages")
@@ -216,6 +217,11 @@ def main():
     ap.add_argument("--config", help="path to config.toml")
     args = ap.parse_args()
     cfg = config.load(args.config)
+
+    if args.command == "check":
+        from . import check
+        check.run(cfg)
+        return
 
     if args.command == "avatar":
         if args.args[:1] == ["make"] and len(args.args) > 1:
