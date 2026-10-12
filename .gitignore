@@ -1,0 +1,12 @@
+# Secrets and personal data never go in this (public) repo.
+.env
+config.toml
+data/
+out/
+
+# Fonts are downloaded from Google Fonts on first run.
+paper/fonts/
+
+__pycache__/
+*.pyc
+.venv/

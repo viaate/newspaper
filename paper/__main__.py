@@ -1,0 +1,200 @@
+"""Build and print the morning paper.
+
+    python -m paper build              # make out/YYYY-MM-DD.pdf (and out/latest.pdf)
+    python -m paper build --sample     # sample grades and email, live weather and news
+    python -m paper print              # print out/latest.pdf
+    python -m paper run                # build, then print
+    python -m paper avatar make PHOTOS # draw avatar options A-D for the comic
+    python -m paper avatar pick B      # keep option B
+"""
+
+import argparse
+import json
+import shutil
+from datetime import date, timedelta
+from pathlib import Path
+
+from . import comic, config, grades, images, printer, puzzles, render, writer
+from .dates import fmt
+from .sources import gmail, news, schoology, weather
+
+SAMPLE = Path(__file__).resolve().parent / "sample.json"
+
+
+def _load_sample(today):
+    s = json.loads(SAMPLE.read_text(encoding="utf-8"))
+
+    def on(days):
+        return today + timedelta(days=days) if days is not None else None
+
+    courses, week = [], []
+    for c in s["courses"]:
+        upcoming = [{"title": u["title"], "due": on(u["due_in_days"])} for u in c.get("upcoming", [])]
+        courses.append({
+            "course": c["course"], "grade": c["grade"], "previous": c.get("previous"),
+            "missing": [{"title": m["title"], "kind": m["kind"], "due": on(m.get("due_in_days"))}
+                        for m in c.get("missing", [])],
+            "upcoming": upcoming,
+        })
+        week += [{"course": c["course"], **u} for u in upcoming]
+    week.sort(key=lambda w: (w["due"], w["course"]))
+    return courses, week, s["emails"], s.get("edition")
+
+
+def _week_by_day(week, today):
+    days = {}
+    for w in week:
+        days.setdefault(w["due"], []).append(w)
+    out = []
+    for d in sorted(days):
+        label = "Today" if d == today else "Tomorrow" if d == today + timedelta(days=1) else fmt(d, "%a %b %-d")
+        out.append({"label": label, "items": days[d]})
+    return out
+
+
+def _snow_watch(forecast):
+    if not forecast:
+        return []
+    ahead = forecast["days"][1:4]
+    snowy = [d for d in ahead if d["snow"] > 0 or "snow" in d["summary"].lower()]
+    if snowy:
+        return [f"Snow forecast {d['date'].strftime('%A')}" + (f": {d['snow']} in." if d["snow"] else ".")
+                for d in snowy]
+    return [f"No snow in the forecast through {ahead[-1]['date'].strftime('%A')}."]
+
+
+def _photos(cfg, today, stories, news_items):
+    """Newsprint photos for the lead story and the first side story, keyed by URL."""
+    feed_image = {n["url"]: n.get("image") for n in news_items}
+    found = {}
+    for s in stories[:2]:
+        source = feed_image.get(s["url"]) or images.find_image(s["url"])
+        if source:
+            path = images.newsprint(source, cfg["out_dir"] / f"{today}-photo-{len(found) + 1}.png")
+            if path:
+                found[s["url"]] = Path(path).as_uri()
+    return found
+
+
+def build(cfg, sample=False, today=None, png=False):
+    today = today or date.today()
+    cfg["out_dir"].mkdir(parents=True, exist_ok=True)
+    notes = []
+
+    # One bad source shouldn't stop the paper, so each is fetched on its own.
+    forecast, stories = None, {"tech": [], "local": [], "world": []}
+    try:
+        forecast = weather.fetch(cfg)
+    except Exception as e:
+        notes.append("Weather was unavailable this morning.")
+        print(f"weather: {e}")
+    try:
+        stories = news.fetch(cfg)
+    except Exception as e:
+        notes.append("News was unavailable this morning.")
+        print(f"news: {e}")
+
+    sample_copy = None
+    if sample:
+        courses, week, mail, sample_copy = _load_sample(today)
+        notes.append("Preview: grades, assignments, email and page-3 features are sample data.")
+    else:
+        courses, week, mail = [], [], []
+        if cfg["secrets"]["SCHOOLOGY_KEY"]:
+            try:
+                s = schoology.fetch(cfg, today)
+                courses, week = s["courses"], s["week"]
+            except Exception as e:
+                notes.append("Couldn't reach Schoology this morning.")
+                print(f"schoology: {e}")
+        try:
+            mail = gmail.fetch(cfg)
+        except Exception as e:
+            notes.append("Couldn't read email this morning.")
+            print(f"gmail: {e}")
+
+    threshold = cfg["grades"]["threshold"]
+    courses = grades.annotate(courses, threshold, cfg["data_dir"], today, save=not sample)
+    style = comic.style_for(today, cfg["comic"]["styles"])
+    ctx = {
+        "today": today, "threshold": threshold, "courses": courses, "week": week,
+        "emails": mail, "weather": forecast, "news": stories,
+    }
+
+    edition = writer.write(cfg, ctx, style)
+    if edition is None:
+        edition = writer.fallback(cfg, ctx, style, sample_copy)
+
+    # Page 3: today's puzzles, and the answers to yesterday's.
+    seed = today.toordinal()
+    crossword = puzzles.crossword([(c["answer"], c["clue"]) for c in edition["crossword"]], seed)
+    scrambles = puzzles.jumble(edition["jumble"], seed)
+    answers = puzzles.yesterdays_answers(cfg["data_dir"], today)
+    if not sample:
+        puzzles.save_answers(cfg["data_dir"], today, crossword, scrambles)
+
+    strip = None
+    if edition.get("comic"):
+        drawn = comic.draw(cfg, edition["comic"], style, cfg["out_dir"] / f"{today}-comic.png")
+        strip = Path(drawn).as_uri() if drawn else None
+
+    p = cfg["paper"]
+    first = date.fromisoformat(p.get("first_issue", today.isoformat()))
+    out_pdf = cfg["out_dir"] / f"{today}{'-sample' if sample else ''}.pdf"
+    render.render({
+        "paper": p,
+        "issue": max(1, (today - first).days + 1),
+        "today": today,
+        "edition": edition,
+        "weather": forecast,
+        "snow": _snow_watch(forecast),
+        "courses": courses,
+        "threshold": threshold,
+        "week": _week_by_day(week, today),
+        "photos": _photos(cfg, today, edition["tech"], stories["tech"]),
+        "style": style,
+        "strip": strip,
+        "has_avatar": comic.avatar_path(cfg).exists(),
+        "crossword": crossword,
+        "scrambles": scrambles,
+        "answers": answers,
+        "notes": notes,
+    }, out_pdf, png=png)
+    if not sample:
+        shutil.copyfile(out_pdf, cfg["out_dir"] / "latest.pdf")
+    print(f"built {out_pdf}")
+    return out_pdf
+
+
+def main():
+    ap = argparse.ArgumentParser(description="The morning paper.")
+    ap.add_argument("command", choices=["build", "print", "run", "avatar"])
+    ap.add_argument("args", nargs="*", help="for avatar: make PHOTO... | pick LETTER")
+    ap.add_argument("--sample", action="store_true", help="use sample grades, email and features")
+    ap.add_argument("--png", action="store_true", help="also save PNGs of the pages")
+    ap.add_argument("--date", type=date.fromisoformat, help="pretend it's this date (YYYY-MM-DD)")
+    ap.add_argument("--config", help="path to config.toml")
+    args = ap.parse_args()
+    cfg = config.load(args.config)
+
+    if args.command == "avatar":
+        if args.args[:1] == ["make"] and len(args.args) > 1:
+            comic.make_avatars(cfg, comic.photo_paths(args.args[1:]))
+            print("Look at data/avatar/option-A..D.png, then run: python -m paper avatar pick <letter>")
+        elif args.args[:1] == ["pick"] and len(args.args) == 2:
+            comic.pick_avatar(cfg, args.args[1])
+        else:
+            ap.error("use: avatar make PHOTO... | avatar pick LETTER")
+        return
+
+    if args.command in ("build", "run"):
+        pdf = build(cfg, sample=args.sample, today=args.date, png=args.png)
+    else:
+        pdf = cfg["out_dir"] / "latest.pdf"
+    if args.command in ("print", "run"):
+        printer.send(pdf, cfg["printer"].get("name", ""))
+        print(f"sent {pdf} to the printer")
+
+
+if __name__ == "__main__":
+    main()

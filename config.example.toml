@@ -1,0 +1,57 @@
+# Copy this to config.toml and edit it. Keys and passwords go in .env, not here.
+
+[paper]
+name = "The Olivia Times"
+reader = "Olivia"
+tagline = "All the News That's Fit for Olivia"
+city = "Mission Hills, Kansas"
+school = "Pembroke Hill School"
+latitude = 39.0186
+longitude = -94.6172
+timezone = "America/Chicago"
+print_time = "6:50 A.M."
+first_issue = "2026-10-12"   # Vol. 1, No. 1
+
+[grades]
+threshold = 92.5             # anything under this gets flagged
+
+[schoology]
+domain = "pembroke.schoology.com"
+
+[email]
+# Personal Gmail is read over IMAP with an app password (GMAIL_ADDRESS and
+# GMAIL_APP_PASSWORD in .env). School mail arrives as a digest email sent by
+# apps_script/school_digest.gs, with this subject:
+digest_subject = "Olivia Times school digest"
+lookback_hours = 24
+
+[news]
+tech_feeds = [
+  "https://www.theverge.com/rss/index.xml",
+  "https://techcrunch.com/feed/",
+]
+local_feeds = [
+  "https://www.kcur.org/news.rss",
+  "https://www.kshb.com/news/local-news.rss",
+]
+world_feeds = [
+  "https://feeds.bbci.co.uk/news/world/rss.xml",
+]
+hacker_news = true
+
+[comic]
+# A black-and-white daily strip starring your avatar, drawn by Google's Gemini
+# image model (GEMINI_API_KEY in .env). Set up the avatar once with
+# `python -m paper avatar make <photos>`, then `python -m paper avatar pick A`.
+enabled = true
+model = ""                   # blank = newest Gemini image model your key can use
+look = "a teenage girl with long, straight, light-blonde hair"
+# A different show's art style each day, in this order.
+styles = [
+  "The Simpsons", "Bob's Burgers", "Futurama", "King of the Hill", "Daria",
+  "BoJack Horseman", "Rick and Morty", "Archer", "Family Guy", "American Dad!",
+  "South Park", "Solar Opposites",
+]
+
+[printer]
+name = ""                    # printer name; blank uses the default printer

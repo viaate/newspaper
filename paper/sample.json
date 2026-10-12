@@ -1,0 +1,273 @@
+{
+  "_note": "Made-up classes, grades and email for previews. Due dates are days from the build date.",
+  "courses": [
+    {
+      "course": "AP Chemistry",
+      "grade": 91.8,
+      "previous": 93.4,
+      "missing": [
+        {
+          "title": "Lab 4: Titration write-up",
+          "kind": "Missing",
+          "due_in_days": -3
+        }
+      ],
+      "upcoming": [
+        {
+          "title": "Problem Set 6",
+          "due_in_days": 1
+        }
+      ]
+    },
+    {
+      "course": "English 10: American Literature",
+      "grade": 92.1,
+      "previous": 92.0,
+      "missing": [
+        {
+          "title": "Gatsby Ch. 4-6 reading quiz",
+          "kind": "Incomplete",
+          "due_in_days": -1
+        }
+      ],
+      "upcoming": [
+        {
+          "title": "Essay draft: The American Dream",
+          "due_in_days": 2
+        }
+      ]
+    },
+    {
+      "course": "Honors Precalculus",
+      "grade": 95.2,
+      "previous": 95.6,
+      "upcoming": [
+        {
+          "title": "Unit 2 quiz",
+          "due_in_days": 3
+        }
+      ]
+    },
+    {
+      "course": "Spanish III",
+      "grade": 94.0,
+      "previous": 93.1,
+      "upcoming": [
+        {
+          "title": "Vocab quiz, Capítulo 3",
+          "due_in_days": 3
+        }
+      ]
+    },
+    {
+      "course": "AP World History",
+      "grade": 96.7,
+      "previous": 96.7,
+      "upcoming": [
+        {
+          "title": "DBQ practice",
+          "due_in_days": 4
+        }
+      ]
+    },
+    {
+      "course": "Intro to Computer Science",
+      "grade": 98.5,
+      "previous": 98.5,
+      "upcoming": [
+        {
+          "title": "Project 2 checkpoint",
+          "due_in_days": 4
+        }
+      ]
+    }
+  ],
+  "emails": [
+    {
+      "account": "school",
+      "sender": "Mr. Patel",
+      "subject": "Lab 4 make-up, Thursday after school",
+      "important": true,
+      "body": "Olivia, I still don't have your Lab 4 write-up. Turn it in, or come in Thursday from 3:15 to 4:00 to finish it."
+    },
+    {
+      "account": "personal",
+      "sender": "College Board",
+      "subject": "Confirm your AP exam registration by Friday",
+      "important": true,
+      "body": "Your school's AP registration window closes Friday."
+    },
+    {
+      "account": "school",
+      "sender": "Ms. Okafor",
+      "subject": "Peer review moved to Wednesday",
+      "important": true,
+      "body": "We'll do essay peer review Wednesday instead. Bring a printed draft."
+    },
+    {
+      "account": "personal",
+      "sender": "Coach Rivera",
+      "subject": "Practice at 4:30 tomorrow",
+      "important": false,
+      "body": "Practice moves to 4:30 tomorrow because of the field schedule."
+    },
+    {
+      "account": "school",
+      "sender": "Upper School Office",
+      "subject": "Picture retakes Thursday",
+      "important": false,
+      "body": "Picture retakes are Thursday in the commons."
+    },
+    {
+      "account": "personal",
+      "sender": "Spotify",
+      "subject": "Your Discover Weekly is ready",
+      "important": false,
+      "body": "New music picked for you."
+    }
+  ],
+  "edition": {
+    "headline": "Chemistry Slips to 91.8. Lab 4 Is the Fix.",
+    "deck": "English is just under the line too, and your American Dream essay draft is due Wednesday.",
+    "lead": [
+      "Good morning, Olivia. Two classes are under 92.5 today. AP Chemistry dropped from 93.4 to 91.8 because Lab 4 is marked missing. Mr. Patel says you can turn it in, or come Thursday from 3:15 to 4:00 to finish it. English is at 92.1 with the Gatsby reading quiz still incomplete.",
+      "The rest of the week is busy but doable: Problem Set 6 for Chem tomorrow, the essay draft Wednesday (bring a printed copy, since peer review moved to that day), then the precalc and Spanish quizzes Thursday. And confirm your AP exams before Friday."
+    ],
+    "needs_a_look": [
+      {
+        "tag": "ACTION",
+        "who": "Mr. Patel (AP Chem)",
+        "line": "Lab 4 is missing. Turn it in or finish it Thursday, 3:15-4:00."
+      },
+      {
+        "tag": "ACTION",
+        "who": "College Board",
+        "line": "Confirm your AP exam registration by Friday."
+      },
+      {
+        "tag": "FYI",
+        "who": "Ms. Okafor (English)",
+        "line": "Peer review moved to Wednesday. Bring a printed draft."
+      },
+      {
+        "tag": "FYI",
+        "who": "Coach Rivera",
+        "line": "Practice is at 4:30 tomorrow."
+      },
+      {
+        "tag": "FYI",
+        "who": "Upper School Office",
+        "line": "Picture retakes are Thursday in the commons."
+      }
+    ],
+    "today": [
+      {
+        "time": "8:00 A.M.",
+        "what": "Ask Mr. Patel about the Lab 4 make-up",
+        "tag": "IN PERSON"
+      },
+      {
+        "time": "Today",
+        "what": "Finish the Lab 4 write-up",
+        "tag": "CATCH UP"
+      },
+      {
+        "time": "Today",
+        "what": "Retake the Gatsby Ch. 4-6 reading quiz",
+        "tag": "CATCH UP"
+      },
+      {
+        "time": "Tonight",
+        "what": "Chem Problem Set 6, due tomorrow",
+        "tag": "HOMEWORK"
+      }
+    ],
+    "comic": {
+      "title": "",
+      "panels": [
+        {
+          "scene": "Olivia at her desk late at night, lamp on, a beaker-shaped mug of tea, typing a lab report titled LAB 4 on her laptop.",
+          "balloon": "Titration: the art of adding one drop.",
+          "caption": "11:48 P.M."
+        },
+        {
+          "scene": "Olivia sprinting down a school hallway with a stack of papers and a backpack, a wall clock reading 7:59.",
+          "balloon": "Lab 4, you're FINALLY going in!",
+          "caption": "Heading to Chem"
+        },
+        {
+          "scene": "Olivia at a classroom desk, slumped in relief, a paper on the desk stamped RECEIVED, while a quiz labeled POP QUIZ slides onto the desk next to it.",
+          "balloon": "...Did anyone say pop quiz?",
+          "caption": "Plot twist"
+        }
+      ]
+    },
+    "dear": {
+      "headline": "Is 92.1 close enough to count as 92.5?",
+      "letter": "Dear Olivia, I'm four-tenths of a point under the line in English and one missing lab away in Chemistry. My planner says I'm fine. My grade portal says otherwise. Do I trust the planner? It has stickers.",
+      "signed": "Rounding Up in Mission Hills",
+      "reply": "Dear Rounding Up, the portal doesn't care about stickers. Good news: you're closer than it looks. One lab write-up and one reading quiz is maybe ninety minutes of work, and both grades bounce back over the line. Do the lab tonight, the quiz tomorrow, then reward the planner with a sticker. It earned it."
+    },
+    "classifieds": [
+      {
+        "section": "WANTED",
+        "headline": "One (1) extra hour, Wednesday",
+        "body": "Essay draft due, peer review moved, practice at 4:30. Will trade a slightly used free period. Serious inquiries only."
+      },
+      {
+        "section": "FOR SALE",
+        "headline": "Burette, barely titrated",
+        "body": "Excellent condition, gently used for Lab 4. Comes with a write-up, eventually. Pick up in Room 214."
+      },
+      {
+        "section": "NOTICES",
+        "headline": "Picture retakes Thursday",
+        "body": "The Upper School Office reminds all students that yes, this is the outfit you'll be remembered in. Plan accordingly."
+      }
+    ],
+    "crossword": [
+      {
+        "answer": "TITRATION",
+        "clue": "Lab 4's drop-by-drop technique"
+      },
+      {
+        "answer": "GATSBY",
+        "clue": "Fitzgerald's party host with a green light"
+      },
+      {
+        "answer": "PRECALC",
+        "clue": "Thursday's quiz subject, for short"
+      },
+      {
+        "answer": "ESSAY",
+        "clue": "Draft due Wednesday"
+      },
+      {
+        "answer": "BURETTE",
+        "clue": "Glass tube with a stopcock"
+      },
+      {
+        "answer": "DBQ",
+        "clue": "History essay type, in brief"
+      },
+      {
+        "answer": "VOCAB",
+        "clue": "Spanish quiz focus"
+      },
+      {
+        "answer": "PRACTICE",
+        "clue": "It's at 4:30 tomorrow"
+      },
+      {
+        "answer": "RAIN",
+        "clue": "Wednesday's forecast, likely"
+      }
+    ],
+    "jumble": [
+      "BEAKER",
+      "ESSAY",
+      "PENCIL",
+      "LOCKER"
+    ]
+  }
+}

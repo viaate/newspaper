@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ paper.name }} · {{ today|fmt('%B %-d, %Y') }}</title>
+<style>
+{% for f in fonts %}
+@font-face {
+  font-family: "{{ f.family }}";
+  font-weight: {{ f.weight }};
+  font-style: {{ f.style }};
+  src: url("{{ font_dir }}/{{ f.file }}");
+}
+{% endfor %}
+
+@page { size: Letter; margin: 0.4in 0.45in 0.35in; }
+
+:root {
+  --ink: #111;
+  --rule: #111;
+  --hair: #9a9a9a;
+  --shade: #e4e4e4;
+  --serif: "Source Serif 4", Georgia, serif;
+  --display: "Playfair Display", "Source Serif 4", serif;
+  --sans: "Libre Franklin", Arial, sans-serif;
+  --letter: "Comic Neue", "Comic Sans MS", sans-serif;
+  --page-w: 7.6in;
+  --page-h: 10.25in;
+}
+
+* { box-sizing: border-box; }
+html { color: var(--ink); font-family: var(--serif); font-size: 9pt; line-height: 1.28; }
+body { margin: 0; }
+p { margin: 0 0 0.45em; }
+h1, h2, h3, h4 { margin: 0; font-weight: normal; }
+img { display: block; }
+
+/* Each page is exactly one sheet. If a busy day overflows, the script in
+   render.py shrinks that page's --z until it fits. */
+.page { width: var(--page-w); height: var(--page-h); overflow: hidden; break-after: page; position: relative; }
+.page:last-child { break-after: auto; }
+.inner { --z: 1; zoom: var(--z); width: calc(var(--page-w) / var(--z)); min-height: calc(var(--page-h) / var(--z));
+         display: flex; flex-direction: column; }
+.grow { flex: 1; }
+
+.label, .kicker, .section-head, .dateline, .tag, .forecast th, .footer, .grade-table th,
+.day-label, .running-head, .source, .agenda .time, .agenda .what-tag, .ad .section, .credit {
+  font-family: var(--sans); text-transform: uppercase; letter-spacing: 0.1em;
+}
+
+/* ---------- masthead (A1) ---------- */
+.tagline { text-align: center; font-style: italic; font-size: 7.5pt; color: #333; margin-bottom: 2pt; }
+.nameplate { display: grid; grid-template-columns: 1.25in 1fr 1.25in; align-items: center; }
+.nameplate h1 {
+  font-family: "UnifrakturMaguntia", serif; font-size: 50pt; line-height: 1;
+  text-align: center; white-space: nowrap;
+}
+.ear { border: 0.6pt solid var(--rule); padding: 4pt 5pt; font-size: 7pt; line-height: 1.25; text-align: center; }
+.ear .label { font-size: 6pt; font-weight: 700; }
+.ear .big { font-family: var(--display); font-weight: 700; font-size: 13pt; line-height: 1.15; }
+.dateline {
+  display: flex; justify-content: space-between;
+  border-top: 2.2pt solid var(--rule); border-bottom: 0.6pt solid var(--rule);
+  margin-top: 5pt; padding: 3pt 1pt 2.5pt; font-size: 6.8pt; font-weight: 500;
+}
+
+/* ---------- running head (A2, A3) ---------- */
+.running-head {
+  display: flex; justify-content: space-between; font-size: 6.8pt; font-weight: 700;
+  border-bottom: 2.2pt solid var(--rule); padding-bottom: 3pt;
+}
+.page-title {
+  font-family: var(--display); font-weight: 900; font-size: 22pt; line-height: 1;
+  margin: 6pt 0 1pt; display: flex; justify-content: space-between; align-items: baseline;
+  border-bottom: 0.6pt solid var(--rule); padding-bottom: 4pt;
+}
+.page-title small { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 9pt; }
+
+/* ---------- shared ---------- */
+.section-head {
+  border-top: 1.4pt solid var(--rule); padding-top: 3pt; margin: 10pt 0 4pt;
+  font-size: 7pt; font-weight: 700; display: flex; justify-content: space-between;
+}
+.section-head .aside { font-weight: 500; letter-spacing: 0.06em; }
+.section-head.first { margin-top: 0; }
+.muted { color: #555; }
+.rule-left { border-left: 0.6pt solid var(--rule); padding-left: 11pt; }
+.hair-left { border-left: 0.4pt solid var(--hair); padding-left: 10pt; }
+.footer {
+  display: flex; justify-content: space-between; margin-top: 8pt; padding-top: 3pt;
+  border-top: 0.6pt solid var(--rule); font-size: 5.8pt; font-weight: 500;
+}
+.footer .notes { text-transform: none; letter-spacing: 0; font-family: var(--serif); font-style: italic; font-size: 7pt; }
+
+/* ---------- A1 front ---------- */
+.front { display: grid; grid-template-columns: 1fr 2.25in; column-gap: 12pt; margin-top: 9pt; }
+.kicker { font-size: 6.8pt; font-weight: 700; margin-bottom: 2pt; }
+.headline { font-family: var(--display); font-weight: 900; font-size: 30pt; line-height: 1.03; }
+.deck { font-style: italic; font-size: 11pt; line-height: 1.25; margin: 5pt 0 7pt; color: #222; }
+.lead-body { columns: 2; column-gap: 12pt; text-align: justify; hyphens: auto; font-size: 10pt; line-height: 1.32; }
+.lead-body.dropcap p:first-child::first-letter {
+  font-family: var(--display); font-weight: 900; float: left; font-size: 33pt; line-height: 0.82;
+  padding: 3pt 4pt 0 0;
+}
+
+.agenda { width: 100%; border-collapse: collapse; font-size: 9.2pt; }
+.agenda td { padding: 3.6pt 0; border-bottom: 0.4pt solid var(--hair); vertical-align: baseline; }
+.agenda .time { width: 0.85in; font-size: 6.6pt; font-weight: 700; }
+.agenda .what-tag { width: 0.8in; text-align: right; font-size: 5.8pt; font-weight: 700; color: #333; }
+
+.grade-table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+.grade-table th {
+  font-size: 5.8pt; font-weight: 700; text-align: left; padding: 0 4pt 2pt 0;
+  border-bottom: 0.6pt solid var(--rule);
+}
+.grade-table td { padding: 3.2pt 4pt 3.2pt 0; border-bottom: 0.4pt solid var(--hair); vertical-align: top; }
+.grade-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.grade-table td:first-child { padding-left: 6.4pt; }
+.grade-table tr.below td { background: var(--shade); font-weight: 700; }
+.grade-table tr.below td:first-child { border-left: 2.4pt solid var(--ink); padding-left: 4pt; }
+.grade-table .needs { font-size: 8pt; }
+.change.down { font-weight: 700; }
+
+.week-table { width: 100%; border-collapse: collapse; font-size: 8.8pt; }
+.week-table td { padding: 3pt 0; border-bottom: 0.4pt solid var(--hair); vertical-align: top; }
+.day-label { width: 0.95in; font-size: 6.4pt; font-weight: 700; padding-top: 3.4pt !important; }
+.course { font-weight: 600; }
+
+.temp { font-family: var(--display); font-weight: 700; font-size: 26pt; line-height: 1; }
+.temp small { font-size: 13pt; }
+.deg { font-family: var(--serif); font-weight: 400; }
+.weather-line { font-size: 8.4pt; margin-top: 3pt; }
+.forecast { width: 100%; border-collapse: collapse; font-size: 7.8pt; margin-top: 3pt; }
+.forecast th { text-align: left; font-size: 6pt; font-weight: 700; width: 0.38in; }
+.forecast td, .forecast th { padding: 2.2pt 0; border-top: 0.4pt solid var(--hair); }
+.forecast .num { text-align: right; white-space: nowrap; padding-left: 5pt; }
+.snow p { font-size: 8.2pt; margin-bottom: 2pt; }
+.snow .school { font-weight: 700; }
+.notice { padding: 5pt 0; border-bottom: 0.4pt solid var(--hair); font-size: 8.8pt; line-height: 1.3; }
+.notice:last-child { border-bottom: none; }
+.notice .who { font-weight: 700; }
+.tag {
+  display: inline-block; font-size: 5.6pt; font-weight: 700; padding: 0.5pt 2.5pt; margin-right: 3pt;
+  border: 0.6pt solid var(--ink); vertical-align: 1pt;
+}
+.tag.action { background: var(--ink); color: #fff; }
+
+/* ---------- A2 briefing ---------- */
+.photo { width: 100%; border: 0.4pt solid var(--ink); margin-bottom: 4pt; object-fit: cover; }
+.source { font-size: 5.8pt; font-weight: 700; color: #444; margin-top: 2pt; }
+.story h4 { font-family: var(--display); font-weight: 700; font-size: 12pt; line-height: 1.12; margin: 0 0 3pt; }
+.story p { font-size: 8.6pt; text-align: justify; hyphens: auto; }
+.tech-top { display: grid; grid-template-columns: 1.75fr 1fr; column-gap: 12pt; }
+.tech-top .lead h4 { font-size: 21pt; line-height: 1.05; margin-bottom: 5pt; }
+.tech-top .lead .cols { columns: 2; column-gap: 12pt; }
+.tech-top .lead p { font-size: 9pt; }
+.tech-top .lead .photo { height: 2.1in; }
+.tech-top .side .photo { height: 1.15in; }
+.tech-top .side .story + .story { border-top: 0.4pt solid var(--hair); margin-top: 6pt; padding-top: 6pt; }
+.tech-row { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12pt; margin-top: 8pt;
+            border-top: 0.4pt solid var(--hair); padding-top: 7pt; }
+.briefs { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12pt; }
+.brief { padding: 4pt 0; border-bottom: 0.4pt solid var(--hair); }
+.brief:last-child { border-bottom: none; }
+.brief h5 { font-family: var(--serif); font-weight: 700; font-size: 9.6pt; line-height: 1.18; margin: 0 0 2pt; }
+.brief p { font-size: 8.4pt; margin: 0; }
+
+/* ---------- A3 puzzles & funnies ---------- */
+.strip { margin-top: 8pt; }
+.strip img { width: 100%; border: 0.6pt solid var(--ink); }
+.credit { font-size: 5.8pt; font-weight: 700; color: #444; margin-top: 3pt; display: flex; justify-content: space-between; }
+.strip-sketch { border: 0.6pt solid var(--ink); padding: 6pt; }
+.strip-title { display: flex; align-items: baseline; gap: 8pt; margin-bottom: 5pt; }
+.strip-title b { font-family: var(--letter); font-weight: 700; font-size: 22pt; line-height: 1; }
+.strip-title span { font-family: var(--sans); font-size: 6pt; font-weight: 700; letter-spacing: 0.14em; }
+.panels { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 6pt; }
+.panel { border: 1.2pt solid var(--ink); height: 1.75in; padding: 6pt; display: flex; flex-direction: column; justify-content: space-between; }
+.balloon {
+  font-family: var(--letter); font-weight: 700; font-size: 9.5pt; line-height: 1.15; text-transform: uppercase;
+  border: 1pt solid var(--ink); border-radius: 50%; padding: 7pt 9pt; text-align: center; align-self: flex-start; max-width: 92%;
+}
+.scene { font-style: italic; font-size: 7.6pt; color: #444; }
+.panel-caption { text-align: center; font-family: var(--letter); font-weight: 700; font-size: 7.6pt; margin-top: 3pt; }
+.sketch-note { font-size: 7pt; font-style: italic; color: #444; margin-top: 4pt; }
+
+.fun-row { display: grid; grid-template-columns: 4.55in 1fr; column-gap: 12pt; }
+.xw { display: grid; grid-template-columns: auto 1fr; column-gap: 10pt; align-items: start; }
+.xw-grid { display: grid; grid-auto-rows: 0.235in; padding: 0.5pt; }
+.xw-grid .cell { position: relative; outline: 0.8pt solid var(--ink); outline-offset: -0.4pt; background: #fff; }
+.xw-grid .cell i { position: absolute; top: 0.8pt; left: 1.6pt; font-style: normal; font-family: var(--sans); font-size: 5pt; font-weight: 700; line-height: 1; }
+.clues { font-size: 7.8pt; line-height: 1.22; }
+.clues b { display: block; font-family: var(--sans); font-size: 6pt; letter-spacing: 0.1em; margin: 0 0 2pt; }
+.clues div + b { margin-top: 5pt; }
+.clues div { margin-bottom: 2pt; }
+
+.dear h4 { font-family: var(--display); font-weight: 900; font-size: 14pt; line-height: 1.08; margin-bottom: 5pt; }
+.dear p { font-size: 8.6pt; text-align: justify; hyphens: auto; }
+.dear .salute { font-weight: 700; font-style: normal; }
+.dear .signed { text-align: right; font-style: italic; font-size: 8pt; }
+
+.jumble { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 10pt; }
+.jumble .word { text-align: center; }
+.jumble .letters { font-family: var(--sans); font-weight: 900; font-size: 11pt; letter-spacing: 0.2em; }
+.jumble .boxes { display: flex; justify-content: center; gap: 2pt; margin-top: 3pt; }
+.jumble .boxes span { width: 0.2in; height: 0.2in; border: 0.8pt solid var(--ink); }
+
+.ads { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 12pt; }
+.ad .section { font-size: 6pt; font-weight: 700; }
+.ad h5 { font-family: var(--serif); font-weight: 700; font-size: 9.4pt; line-height: 1.15; margin: 2pt 0; }
+.ad p { font-size: 8.2pt; margin: 0; }
+.answers { font-size: 7pt; color: #333; margin-top: 8pt; border-top: 0.4pt solid var(--hair); padding-top: 3pt; }
+.answers b { font-family: var(--sans); font-size: 6pt; letter-spacing: 0.1em; }
+</style>
+</head>
+<body>
+
+{% set wx = weather.today if weather else None %}
+{% set date_line = today|fmt('%A, %B %-d, %Y') %}
+{% macro running_head(n) %}
+<div class="running-head"><span>{{ paper.name }}</span><span>{{ date_line }}</span><span>A{{ n }}</span></div>
+{% endmacro %}
+{% macro footer(n) %}
+<div class="footer">
+  <span class="notes">{% if n == 1 %}{{ notes|join(' ') }}{% endif %}</span>
+  <span>{{ paper.name }} · {{ today|fmt('%B %-d, %Y') }} · A{{ n }}</span>
+</div>
+{% endmacro %}
+
+<!-- ============================== A1 ============================== -->
+<section class="page"><div class="inner">
+  <header>
+    <div class="tagline">{{ paper.tagline }}</div>
+    <div class="nameplate">
+      <div class="ear">
+        <div class="label">Today</div>
+        {% if wx %}<div class="big">{{ wx.high }}<span class="deg">°</span> / {{ wx.low }}<span class="deg">°</span></div><div>{{ wx.summary }}</div>
+        {% else %}<div class="big">—</div>{% endif %}
+      </div>
+      <h1>{{ paper.name }}</h1>
+      <div class="ear">
+        <div class="label">Printed for {{ paper.reader }}</div>
+        <div class="big">{{ paper.print_time }}</div>
+        <div>Three pages · Free</div>
+      </div>
+    </div>
+    <div class="dateline">
+      <span>Vol. I · No. {{ issue }}</span><span>{{ date_line }}</span><span>{{ paper.city }}</span>
+    </div>
+  </header>
+
+  <div class="front grow">
+    <main>
+      <div class="kicker">Your Day</div>
+      <h2 class="headline">{{ edition.headline }}</h2>
+      <p class="deck">{{ edition.deck }}</p>
+      <div class="lead-body {{ 'dropcap' if edition.lead and edition.lead[0]|length > 160 }}">{% for para in edition.lead %}<p>{{ para }}</p>{% endfor %}</div>
+
+      {% if edition.today %}
+      <h3 class="section-head"><span>Today</span><span class="aside">{{ edition.today|length }} items</span></h3>
+      <table class="agenda">
+        {% for item in edition.today %}
+        <tr><td class="time">{{ item.time }}</td><td>{{ item.what }}</td><td class="what-tag">{{ item.tag }}</td></tr>
+        {% endfor %}
+      </table>
+      {% endif %}
+
+      <h3 class="section-head"><span>Grade Watch</span><span class="aside">Flagged under {{ threshold }}</span></h3>
+      {% if courses %}
+      <table class="grade-table">
+        <thead><tr><th>Class</th><th class="num">Grade</th><th class="num">Since yest.</th><th>What it needs</th></tr></thead>
+        <tbody>
+        {% for c in courses %}
+          <tr class="{{ 'below' if c.below }}">
+            <td>{{ c.course }}</td>
+            <td class="num">{{ '%.1f'|format(c.grade) if c.grade is not none else '—' }}</td>
+            <td class="num">
+              {% if c.change is none %}<span class="muted">—</span>
+              {% elif c.change < 0 %}<span class="change down">−{{ '%.1f'|format(-c.change) }}</span>
+              {% elif c.change > 0 %}<span class="change">+{{ '%.1f'|format(c.change) }}</span>
+              {% else %}<span class="muted">even</span>{% endif %}
+            </td>
+            <td class="needs">
+              {% if c.missing %}{% for m in c.missing[:2] %}{{ m.kind }}: {{ m.title }}{% if not loop.last %}; {% endif %}{% endfor %}
+              {% elif c.upcoming %}<span class="muted">Next: {{ c.upcoming[0].title }}, {{ c.upcoming[0].due.strftime('%a') }}</span>
+              {% else %}<span class="muted">Nothing due</span>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="muted">No grades this morning.</p>{% endif %}
+
+      <h3 class="section-head"><span>This Week</span><span class="aside">From Schoology</span></h3>
+      {% if week %}
+      <table class="week-table">
+        {% for d in week[:7] %}
+        <tr><td class="day-label">{{ d.label }}</td>
+            <td>{% for w in d['items'] %}<span class="course">{{ w.course }}:</span> {{ w.title }}{% if not loop.last %} · {% endif %}{% endfor %}</td></tr>
+        {% endfor %}
+      </table>
+      {% else %}<p class="muted">Nothing due in the next seven days.</p>{% endif %}
+    </main>
+
+    <aside class="rule-left">
+      <h3 class="section-head first"><span>Weather</span><span class="aside">{{ paper.city.split(',')[0] }}</span></h3>
+      {% if wx %}
+      <div class="temp">{{ wx.high }}<span class="deg">°</span><small> / {{ wx.low }}<span class="deg">°</span></small></div>
+      <p class="weather-line">{{ edition.weather_line }}</p>
+      <table class="forecast">
+        {% for d in weather.days[1:5] %}
+        <tr><th>{{ d.date.strftime('%a') }}</th><td>{{ d.summary }}</td><td class="num">{{ d.high }}°/{{ d.low }}°</td><td class="num">{{ d.rain_chance }}%</td></tr>
+        {% endfor %}
+      </table>
+      {% else %}<p class="muted">Forecast unavailable.</p>{% endif %}
+
+      <div class="snow">
+        <h3 class="section-head"><span>Snow Day Watch</span></h3>
+        <p class="school">{{ paper.school }}</p>
+        {% for line in snow %}<p>{{ line }}</p>{% else %}<p class="muted">No forecast this morning.</p>{% endfor %}
+      </div>
+
+      <h3 class="section-head"><span>Needs a Look</span><span class="aside">Email</span></h3>
+      {% for n in edition.needs_a_look[:5] %}
+      <div class="notice"><span class="tag {{ 'action' if n.tag == 'ACTION' }}">{{ n.tag }}</span><span class="who">{{ n.who }}.</span> {{ n.line }}</div>
+      {% else %}<p class="muted">Nothing that needs you.</p>{% endfor %}
+    </aside>
+  </div>
+  {{ footer(1) }}
+</div></section>
+
+<!-- ============================== A2 ============================== -->
+{% set tech = edition.tech %}
+<section class="page"><div class="inner">
+  {{ running_head(2) }}
+  <div class="page-title"><span>The Briefing</span><small>Tech, Kansas City and the world</small></div>
+
+  <h3 class="section-head"><span>Tech</span><span class="aside">{{ tech|map(attribute='source')|unique|join(' · ') }}</span></h3>
+  {% if tech %}
+  <div class="tech-top">
+    <article class="story lead">
+      {% if photos.get(tech[0].url) %}<img class="photo" src="{{ photos[tech[0].url] }}" alt="">{% endif %}
+      <h4>{{ tech[0].headline }}</h4>
+      <div class="cols"><p>{{ tech[0].body }}</p><div class="source">{{ tech[0].source }}</div></div>
+    </article>
+    <div class="side hair-left">
+      {% for s in tech[1:3] %}
+      <article class="story">
+        {% if loop.first and photos.get(s.url) %}<img class="photo" src="{{ photos[s.url] }}" alt="">{% endif %}
+        <h4>{{ s.headline }}</h4><p>{{ s.body }}</p><div class="source">{{ s.source }}</div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+  {% if tech|length > 3 %}
+  <div class="tech-row">
+    {% for s in tech[3:5] %}
+    <article class="story {{ 'hair-left' if not loop.first }}">
+      <h4>{{ s.headline }}</h4><p>{{ s.body }}</p><div class="source">{{ s.source }}</div>
+    </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% else %}<p class="muted">No tech news this morning.</p>{% endif %}
+
+  <div class="briefs grow">
+    <div>
+      <h3 class="section-head"><span>Around Kansas City</span></h3>
+      {% for b in edition.local %}<div class="brief"><h5>{{ b.headline }}</h5><p>{{ b.body }}</p></div>
+      {% else %}<p class="muted">Nothing local this morning.</p>{% endfor %}
+    </div>
+    <div>
+      <h3 class="section-head"><span>The World</span></h3>
+      {% for b in edition.world %}<div class="brief"><h5>{{ b.headline }}</h5><p>{{ b.body }}</p></div>
+      {% else %}<p class="muted">No world news this morning.</p>{% endfor %}
+    </div>
+  </div>
+  {{ footer(2) }}
+</div></section>
+
+<!-- ============================== A3 ============================== -->
+<section class="page"><div class="inner">
+  {{ running_head(3) }}
+  <div class="page-title"><span>Puzzles &amp; Funnies</span><small>Starring {{ paper.reader }}</small></div>
+
+  {% set c = edition.comic %}
+  {% if c %}
+  <div class="strip">
+    {% if strip %}
+      <img src="{{ strip }}" alt="Today's comic strip">
+    {% else %}
+      <div class="strip-sketch">
+        <div class="strip-title"><b>{{ c.title }}</b><span>Inspired by {{ style }}</span></div>
+        <div class="panels">
+          {% for p in c.panels[:3] %}
+          <div>
+            <div class="panel"><div class="balloon">{{ p.balloon }}</div><div class="scene">{{ p.scene }}</div></div>
+            <div class="panel-caption">{{ p.caption }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="sketch-note">{% if has_avatar %}The artist couldn't draw today, so here's the script.{% else %}Script only for now: once your avatar is set up, this strip is drawn every morning in black and white, starring you.{% endif %}</div>
+    {% endif %}
+    <div class="credit"><span>The Daily Comic · “{{ c.title }}”</span><span>Inspired by {{ style }}</span></div>
+  </div>
+  {% endif %}
+
+  <div class="fun-row">
+    <div>
+      <h3 class="section-head"><span>Mini Crossword</span><span class="aside">From your week</span></h3>
+      {% if crossword %}
+      <div class="xw">
+        <div class="xw-grid" style="grid-template-columns: repeat({{ crossword.width }}, 0.235in)">
+          {% for row in crossword.rows %}{% for cell in row %}{% if cell %}<div class="cell">{% if cell.number %}<i>{{ cell.number }}</i>{% endif %}</div>{% else %}<div></div>{% endif %}{% endfor %}{% endfor %}
+        </div>
+        <div class="clues">
+          <b>Across</b>{% for a in crossword.across %}<div><strong>{{ a.number }}</strong> {{ a.clue }} ({{ a.length }})</div>{% endfor %}
+          <b>Down</b>{% for d in crossword.down %}<div><strong>{{ d.number }}</strong> {{ d.clue }} ({{ d.length }})</div>{% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    <div class="dear rule-left">
+      {% if edition.dear %}
+      <h3 class="section-head"><span>Dear {{ paper.reader }}</span><span class="aside">Advice</span></h3>
+      <h4>{{ edition.dear.headline }}</h4>
+      <p><span class="salute">Dear {{ paper.reader }},</span> {{ edition.dear.letter|replace('Dear ' ~ paper.reader ~ ',', '')|trim }}</p>
+      <p class="signed">— {{ edition.dear.signed }}</p>
+      <p>{{ edition.dear.reply }}</p>
+      <p class="signed">— The Times</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if scrambles %}
+  <h3 class="section-head"><span>Jumble</span><span class="aside">Unscramble these words from your day</span></h3>
+  <div class="jumble">
+    {% for j in scrambles %}
+    <div class="word"><div class="letters">{{ j.scrambled }}</div><div class="boxes">{% for _ in j.answer %}<span></span>{% endfor %}</div></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if edition.classifieds %}
+  <h3 class="section-head"><span>Classifieds</span></h3>
+  <div class="ads grow">
+    {% for ad in edition.classifieds[:3] %}
+    <div class="ad {{ 'hair-left' if not loop.first }}"><div class="section">{{ ad.section }}</div><h5>{{ ad.headline }}</h5><p>{{ ad.body }}</p></div>
+    {% endfor %}
+  </div>
+  {% else %}<div class="grow"></div>{% endif %}
+
+  <div class="answers">
+    {% if answers %}
+    <b>Yesterday's answers</b> · Across: {{ answers.across|join(', ') }} · Down: {{ answers.down|join(', ') }}{% if answers.jumble %} · Jumble: {{ answers.jumble|join(', ') }}{% endif %}
+    {% else %}
+    <b>Answers</b> · Today's solutions run in tomorrow's paper.
+    {% endif %}
+  </div>
+  {{ footer(3) }}
+</div></section>
+
+</body>
+</html>
