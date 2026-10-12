@@ -26,6 +26,13 @@ class AgendaItem(BaseModel):
     tag: str
 
 
+class Package(BaseModel):
+    store: str
+    item: str
+    status: str
+    when: str
+
+
 class Story(BaseModel):
     url: str
     headline: str
@@ -74,6 +81,7 @@ class Edition(BaseModel):
     lead: list[str]
     today: list[AgendaItem]
     needs_a_look: list[Notice]
+    packages: list[Package]
     weather_line: str
     tech: list[Story]
     local: list[Brief]
@@ -100,14 +108,21 @@ PAGE 1, about {reader}'s day:
 - lead: two short paragraphs, 110-150 words in total, speaking to {reader} by name: which \
 classes are under {threshold} and exactly what would fix them, what's due soon, and any email \
 that needs action.
-- today: 3-6 items happening or due today only, in time order. time is like "8:00 A.M.", \
+- today: 3-7 items happening or due today only, in time order: calendar events with their \
+times, assignments due today, and anything an email says is today. time is like "8:00 A.M.", \
 "4:30 P.M.", "11:59 P.M." or "Today" when no time is known. what is at most 9 words. tag is \
-one or two words in capitals, like DUE, TEST, PRACTICE, IN PERSON, REPLY.
+one or two words in capitals, like DUE, TEST, PRACTICE, IN PERSON, REPLY, EVENT.
 - needs_a_look: up to 5 emails that matter (teachers, school, deadlines, real people). Skip \
 marketing, newsletters and receipts unless something has to be done. tag is ACTION if \
 {reader} must do something, else FYI. who is a short sender name, with the class in \
 parentheses for a teacher. line is at most 18 words.
-- weather_line: one sentence about today's weather and anything notable this week.
+- packages: deliveries expected today, from package_emails. Use each email's sent time and \
+today's date: an email from yesterday saying "arriving tomorrow" means today; skip anything \
+already delivered before today or due another day. store is the shop or carrier, item a plain \
+name of at most 6 words, status like "Arriving today" or "Out for delivery", when the delivery \
+window if given (like "by 9 P.M."), else "". Empty list if nothing is coming today.
+- weather_line: one sentence about today's weather, ending with what to wear or bring \
+(a jacket, an umbrella) when it matters, plus anything notable later this week.
 
 PAGE 2, the briefing. Keep it right for a high schooler's breakfast: skip stories centered on \
 sexual crimes or graphic violence, and write about hard news plainly, without gore.
@@ -166,6 +181,16 @@ def _facts(ctx, style):
             "day": day(w["date"]), "summary": w["summary"], "high_f": w["high"],
             "low_f": w["low"], "rain_chance_pct": w["rain_chance"], "snow_in": w["snow"],
         } for w in (ctx["weather"] or {}).get("days", [])],
+        "calendar": [{
+            "title": e["title"], "day": day(e["day"]),
+            "time": e["time"].strftime("%I:%M %p").lstrip("0") if e["time"] else "all day",
+            "where": e["location"],
+        } for e in ctx["calendar"]],
+        "package_emails": [{
+            "from": m["sender"], "subject": m["subject"],
+            "sent": fmt(m["when"], "%A %b %-d, %I:%M %p") if m.get("when") else m["date"],
+            "body": m["body"][:700],
+        } for m in ctx["packages"]],
         "comic_style": style,
         "tech_news": stories(ctx["news"]["tech"], 30),
         "local_news": stories(ctx["news"]["local"], 20),
@@ -173,7 +198,7 @@ def _facts(ctx, style):
     }, indent=1)
 
 
-def write(cfg, ctx, style):
+def write(cfg, ctx, style, print_time):
     """An Edition from Claude, or None if there's no key or the call fails."""
     key = cfg["secrets"]["ANTHROPIC_API_KEY"]
     if not key:
@@ -181,7 +206,7 @@ def write(cfg, ctx, style):
     p = cfg["paper"]
     system = SYSTEM.format(
         name=p["name"], reader=p["reader"], school=p.get("school", "school"), city=p["city"],
-        town=p["city"].split(",")[0], print_time=p["print_time"],
+        town=p["city"].split(",")[0], print_time=print_time,
         threshold=cfg["grades"]["threshold"], comic_style=style,
     )
     try:
@@ -263,9 +288,18 @@ def fallback(cfg, ctx, style, sample_copy=None):
         due = ", ".join(f"{w['course']}: {w['title']}" for w in ctx["week"][:4])
         edition["lead"] = [first, f"Coming up: {due}." if due else "Nothing is due in the next week."]
         edition["today"] = [
+            {"time": e["time"].strftime("%I:%M %p").lstrip("0") if e["time"] else "Today",
+             "what": e["title"], "tag": "EVENT"}
+            for e in ctx["calendar"] if e["day"] == ctx["today"]
+        ] + [
             {"time": "11:59 P.M.", "what": f"{w['course']}: {w['title']}", "tag": "DUE"}
             for w in ctx["week"] if w["due"] == ctx["today"]
         ]
+        edition["packages"] = [
+            {"store": m["sender"][:24], "item": m["subject"][:60], "status": "Arriving today", "when": ""}
+            for m in ctx["packages"]
+            if re.search(r"arriving today|out for delivery", m["subject"], re.I)
+        ][:4]
         edition["needs_a_look"] = [
             {"tag": "FYI", "who": m["sender"][:28], "line": m["subject"][:90]}
             for m in ctx["emails"] if m["important"]

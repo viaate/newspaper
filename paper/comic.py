@@ -71,15 +71,26 @@ def _generate(cfg, prompt, images=(), aspect="21:9"):
     parts = [{"text": prompt}]
     for img in images:
         parts.append({"inline_data": {"mime_type": "image/png", "data": base64.b64encode(img).decode()}})
-    r = requests.post(
-        f"{API}/models/{_model(cfg, key)}:generateContent",
-        params={"key": key},
-        json={
-            "contents": [{"parts": parts}],
-            "generationConfig": {"responseModalities": ["IMAGE"], "imageConfig": {"aspectRatio": aspect}},
-        },
-        timeout=300,
-    )
+    model = _model(cfg, key)
+    image_config = {"aspectRatio": aspect}
+    if cfg["comic"].get("size"):
+        image_config["imageSize"] = cfg["comic"]["size"]
+
+    def post(config):
+        return requests.post(
+            f"{API}/models/{model}:generateContent",
+            params={"key": key},
+            json={
+                "contents": [{"parts": parts}],
+                "generationConfig": {"responseModalities": ["IMAGE"], "imageConfig": config},
+            },
+            timeout=300,
+        )
+
+    r = post(image_config)
+    if r.status_code == 400 and "imageSize" in image_config:
+        # Older image models don't take a size; they make 1K images.
+        r = post({"aspectRatio": aspect})
     r.raise_for_status()
     for candidate in r.json().get("candidates", []):
         for part in candidate.get("content", {}).get("parts", []):

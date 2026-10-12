@@ -13,6 +13,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from email.header import decode_header, make_header
 from email.utils import parseaddr, parsedate_to_datetime
+from zoneinfo import ZoneInfo
 
 LABELS = re.compile(rb"X-GM-LABELS \(([^)]*)\)")
 TAG = re.compile(r"<[^>]+>")
@@ -55,10 +56,42 @@ def _unpack_digest(body):
     } for i in items if isinstance(i, dict)]
 
 
+# Shipping notices from the past week; the writer works out what arrives today.
+PACKAGE_QUERY = (
+    "newer_than:7d (subject:(arriving OR arrives OR delivery OR delivered OR shipped OR shipment) "
+    "OR from:(amazon.com OR ups.com OR fedex.com OR usps.com OR dhl.com OR shopify.com))"
+)
+
+
+def _search(imap, query, limit):
+    _, found = imap.search(None, "X-GM-RAW", f'"{query}"')
+    for num in reversed(found[0].split()[-limit:]):  # newest first
+        # BODY.PEEK leaves messages unread.
+        _, parts = imap.fetch(num, "(X-GM-LABELS BODY.PEEK[])")
+        meta, raw = parts[0]
+        msg = email.message_from_bytes(raw)
+        try:
+            when = parsedate_to_datetime(msg.get("Date"))
+        except (TypeError, ValueError):
+            when = None
+        name, addr = parseaddr(_header(msg, "From"))
+        labels = LABELS.search(meta)
+        yield {
+            "account": "personal",
+            "sender": name or addr,
+            "subject": _header(msg, "Subject"),
+            "when": when,
+            "date": when.isoformat() if when else "",
+            "important": bool(labels and b"\\Important" in labels.group(1)),
+            "body": _body(msg),
+        }
+
+
 def fetch(cfg, limit=40):
+    """{"emails": recent mail plus the school digest, "packages": shipping notices}."""
     s = cfg["secrets"]
     if not (s["GMAIL_ADDRESS"] and s["GMAIL_APP_PASSWORD"]):
-        return []
+        return {"emails": [], "packages": []}
     hours = cfg["email"].get("lookback_hours", 24)
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     digest_subject = cfg["email"].get("digest_subject", "")
@@ -68,41 +101,24 @@ def fetch(cfg, limit=40):
         imap.login(s["GMAIL_ADDRESS"], s["GMAIL_APP_PASSWORD"].replace(" ", ""))
         imap.select("INBOX", readonly=True)
         days = max(1, -(-hours // 24))
-        query = f"newer_than:{days}d -category:promotions -category:social"
-        _, found = imap.search(None, "X-GM-RAW", f'"{query}"')
-        ids = found[0].split()[-limit:]
 
-        mail, have_digest = [], False
-        for num in reversed(ids):  # newest first
-            # BODY.PEEK leaves messages unread.
-            _, parts = imap.fetch(num, "(X-GM-LABELS BODY.PEEK[])")
-            meta, raw = parts[0]
-            msg = email.message_from_bytes(raw)
-            subject = _header(msg, "Subject")
-            body = _body(msg)
+        mail, digests = [], []
+        for m in _search(imap, f"newer_than:{days}d -category:promotions -category:social", limit):
+            if digest_subject and m["subject"].startswith(digest_subject):
+                digests.append(m)
+            elif not (m["when"] and m["when"].tzinfo and m["when"] < since):
+                mail.append({**m, "body": m["body"][:1200]})
+        if digests:  # only the newest school digest
+            newest = max(digests, key=lambda m: m["when"] or datetime.min.replace(tzinfo=timezone.utc))
+            mail.extend(_unpack_digest(newest["body"]) or [])
 
-            if digest_subject and subject.startswith(digest_subject):
-                if not have_digest:  # only this morning's
-                    mail.extend(_unpack_digest(body) or [])
-                    have_digest = True
-                continue
-            try:
-                when = parsedate_to_datetime(msg.get("Date"))
-            except (TypeError, ValueError):
-                when = None
-            if when and when.tzinfo and when < since:
-                continue
-            labels = LABELS.search(meta)
-            name, addr = parseaddr(_header(msg, "From"))
-            mail.append({
-                "account": "personal",
-                "sender": name or addr,
-                "subject": subject,
-                "date": when.isoformat() if when else "",
-                "important": bool(labels and b"\\Important" in labels.group(1)),
-                "body": body[:1200],
-            })
-        return mail
+        # Local time, so "arriving tomorrow" sent last night reads correctly.
+        tz = ZoneInfo(cfg["paper"]["timezone"])
+        packages = [{**m, "body": m["body"][:1200]} for m in _search(imap, PACKAGE_QUERY, 25)]
+        for m in packages:
+            if m["when"] and m["when"].tzinfo:
+                m["when"] = m["when"].astimezone(tz)
+        return {"emails": mail, "packages": packages}
     finally:
         try:
             imap.logout()

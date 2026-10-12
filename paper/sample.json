@@ -268,6 +268,20 @@
       "ESSAY",
       "PENCIL",
       "LOCKER"
+    ],
+    "packages": [
+      {
+        "store": "Amazon",
+        "item": "TI-84 calculator case",
+        "status": "Arriving today",
+        "when": "by 9 P.M."
+      },
+      {
+        "store": "UPS",
+        "item": "Nike order",
+        "status": "Out for delivery",
+        "when": ""
+      }
     ]
   }
 }

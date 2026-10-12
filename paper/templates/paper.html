@@ -144,6 +144,13 @@ img { display: block; }
   border: 0.6pt solid var(--ink); vertical-align: 1pt;
 }
 .tag.action { background: var(--ink); color: #fff; }
+.package { padding: 3.5pt 0; border-bottom: 0.4pt solid var(--hair); font-size: 8.6pt; line-height: 1.28; }
+.package .who { font-weight: 700; }
+.package .pk-status { display: block; font-family: var(--sans); font-size: 5.8pt; font-weight: 700;
+                      letter-spacing: 0.1em; text-transform: uppercase; color: #333; margin-top: 1pt; }
+.countdown { width: 100%; border-collapse: collapse; font-size: 8.6pt; }
+.countdown td { padding: 2.5pt 0; border-bottom: 0.4pt solid var(--hair); vertical-align: middle; }
+.countdown .days { font-family: var(--display); font-weight: 900; font-size: 15pt; width: 0.42in; line-height: 1; }
 
 /* ---------- A2 briefing ---------- */
 .photo { width: 100%; border: 0.4pt solid var(--ink); margin-bottom: 4pt; object-fit: cover; }
@@ -239,7 +246,7 @@ img { display: block; }
       <h1>{{ paper.name }}</h1>
       <div class="ear">
         <div class="label">Printed for {{ paper.reader }}</div>
-        <div class="big">{{ paper.print_time }}</div>
+        <div class="big">{{ print_time }}</div>
         <div>Three pages · Free</div>
       </div>
     </div>
@@ -319,10 +326,26 @@ img { display: block; }
         {% for line in snow %}<p>{{ line }}</p>{% else %}<p class="muted">No forecast this morning.</p>{% endfor %}
       </div>
 
+      {% if edition.packages %}
+      <h3 class="section-head"><span>Packages</span><span class="aside">Arriving today</span></h3>
+      {% for pk in edition.packages[:4] %}
+      <div class="package"><span class="who">{{ pk.store }}:</span> {{ pk.item }}<span class="pk-status">{{ pk.status }}{% if pk.when %}, {{ pk.when }}{% endif %}</span></div>
+      {% endfor %}
+      {% endif %}
+
       <h3 class="section-head"><span>Needs a Look</span><span class="aside">Email</span></h3>
       {% for n in edition.needs_a_look[:5] %}
       <div class="notice"><span class="tag {{ 'action' if n.tag == 'ACTION' }}">{{ n.tag }}</span><span class="who">{{ n.who }}.</span> {{ n.line }}</div>
       {% else %}<p class="muted">Nothing that needs you.</p>{% endfor %}
+
+      {% if countdowns %}
+      <h3 class="section-head"><span>Countdown</span></h3>
+      <table class="countdown">
+        {% for c in countdowns %}
+        <tr><td class="days">{{ c.days }}</td><td>{{ 'day' if c.days == 1 else 'days' }} until <b>{{ c.name }}</b>{% if c.days == 0 %} (today!){% endif %}</td></tr>
+        {% endfor %}
+      </table>
+      {% endif %}
     </aside>
   </div>
   {{ footer(1) }}

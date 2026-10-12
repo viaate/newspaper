@@ -2,7 +2,7 @@
 
     python -m paper build              # make out/YYYY-MM-DD.pdf (and out/latest.pdf)
     python -m paper build --sample     # sample grades and email, live weather and news
-    python -m paper print              # print out/latest.pdf
+    python -m paper print              # print this morning's paper (building it first if needed)
     python -m paper run                # build, then print
     python -m paper avatar make PHOTOS # draw avatar options A-D for the comic
     python -m paper avatar pick B      # keep option B
@@ -16,7 +16,7 @@ from pathlib import Path
 
 from . import comic, config, grades, images, printer, puzzles, render, writer
 from .dates import fmt
-from .sources import gmail, news, schoology, weather
+from .sources import calendars, gmail, news, schoology, weather
 
 SAMPLE = Path(__file__).resolve().parent / "sample.json"
 
@@ -63,6 +63,22 @@ def _snow_watch(forecast):
     return [f"No snow in the forecast through {ahead[-1]['date'].strftime('%A')}."]
 
 
+def _print_time(cfg, day):
+    """Today's print time from [schedule], like "6:50 A.M."."""
+    hhmm = cfg["schedule"]["weekend" if day.weekday() >= 5 else "weekday"]
+    h, m = (int(x) for x in hhmm.split(":"))
+    return f"{(h - 1) % 12 + 1}:{m:02d} {'A.M.' if h < 12 else 'P.M.'}"
+
+
+def _countdowns(cfg, today, limit=3):
+    ahead = []
+    for c in cfg.get("countdown", []):
+        when = date.fromisoformat(str(c["date"]))
+        if when >= today:
+            ahead.append({"name": c["name"], "days": (when - today).days, "date": when})
+    return sorted(ahead, key=lambda c: c["days"])[:limit]
+
+
 def _photos(cfg, today, stories, news_items):
     """Newsprint photos for the lead story and the first side story, keyed by URL."""
     feed_image = {n["url"]: n.get("image") for n in news_items}
@@ -94,10 +110,10 @@ def build(cfg, sample=False, today=None, png=False):
         notes.append("News was unavailable this morning.")
         print(f"news: {e}")
 
-    sample_copy = None
+    sample_copy, packages, events = None, [], []
     if sample:
         courses, week, mail, sample_copy = _load_sample(today)
-        notes.append("Preview: grades, assignments, email and page-3 features are sample data.")
+        notes.append("Preview: grades, assignments, email, packages and page-3 features are sample data.")
     else:
         courses, week, mail = [], [], []
         if cfg["secrets"]["SCHOOLOGY_KEY"]:
@@ -108,20 +124,27 @@ def build(cfg, sample=False, today=None, png=False):
                 notes.append("Couldn't reach Schoology this morning.")
                 print(f"schoology: {e}")
         try:
-            mail = gmail.fetch(cfg)
+            got = gmail.fetch(cfg)
+            mail, packages = got["emails"], got["packages"]
         except Exception as e:
             notes.append("Couldn't read email this morning.")
             print(f"gmail: {e}")
+        try:
+            events = calendars.fetch(cfg, today)
+        except Exception as e:
+            notes.append("Couldn't read the calendar this morning.")
+            print(f"calendar: {e}")
 
     threshold = cfg["grades"]["threshold"]
     courses = grades.annotate(courses, threshold, cfg["data_dir"], today, save=not sample)
     style = comic.style_for(today, cfg["comic"]["styles"])
+    print_time = _print_time(cfg, today)
     ctx = {
         "today": today, "threshold": threshold, "courses": courses, "week": week,
-        "emails": mail, "weather": forecast, "news": stories,
+        "emails": mail, "packages": packages, "calendar": events, "weather": forecast, "news": stories,
     }
 
-    edition = writer.write(cfg, ctx, style)
+    edition = writer.write(cfg, ctx, style, print_time)
     if edition is None:
         edition = writer.fallback(cfg, ctx, style, sample_copy)
 
@@ -143,6 +166,8 @@ def build(cfg, sample=False, today=None, png=False):
     out_pdf = cfg["out_dir"] / f"{today}{'-sample' if sample else ''}.pdf"
     render.render({
         "paper": p,
+        "print_time": print_time,
+        "countdowns": _countdowns(cfg, today),
         "issue": max(1, (today - first).days + 1),
         "today": today,
         "edition": edition,
@@ -187,10 +212,11 @@ def main():
             ap.error("use: avatar make PHOTO... | avatar pick LETTER")
         return
 
-    if args.command in ("build", "run"):
-        pdf = build(cfg, sample=args.sample, today=args.date, png=args.png)
-    else:
-        pdf = cfg["out_dir"] / "latest.pdf"
+    today = args.date or date.today()
+    pdf = cfg["out_dir"] / f"{today}{'-sample' if args.sample else ''}.pdf"
+    # `print` builds first if this morning's paper isn't there, so it never reprints yesterday's.
+    if args.command in ("build", "run") or not pdf.exists():
+        pdf = build(cfg, sample=args.sample, today=today, png=args.png)
     if args.command in ("print", "run"):
         printer.send(pdf, cfg["printer"].get("name", ""))
         print(f"sent {pdf} to the printer")

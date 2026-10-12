@@ -1,32 +1,102 @@
 #!/usr/bin/env bash
-# Set up the morning paper on a Linux machine that stays on.
-#   bash scripts/install.sh            # install, then build at 6:35 and print at 6:50 daily
-#   BUILD_AT="30 6" PRINT_AT="50 6" bash scripts/install.sh   # other times (minute hour)
+# Set up the morning paper on an always-on Linux machine (made for Bazzite; works on
+# any systemd distro). Rerun it after changing [schedule] in config.toml.
+#
+#   bash scripts/install.sh
+#
+# Everything lives in this folder and your user account: no sudo, no system packages,
+# which suits Bazzite's read-only system image.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
+PY="$ROOT/.venv/bin/python"
 
-python3 -m venv .venv
-.venv/bin/pip install --upgrade pip
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python -m playwright install --with-deps chromium
+echo "== Python packages"
+[ -x "$PY" ] || python3 -m venv .venv
+"$PY" -m pip install --quiet --upgrade pip
+"$PY" -m pip install --quiet -r requirements.txt
+
+echo "== Chromium (lays out the pages)"
+"$PY" -m playwright install chromium
 
 [ -f config.toml ] || cp config.example.toml config.toml
 [ -f .env ] || { cp .env.example .env; chmod 600 .env; }
 mkdir -p data/photos out
 
-BUILD_AT="${BUILD_AT:-35 6}"
-PRINT_AT="${PRINT_AT:-50 6}"
-LOG="$ROOT/out/cron.log"
-{
-  crontab -l 2>/dev/null | grep -v '# olivia-times' || true
-  echo "$BUILD_AT * * * cd $ROOT && .venv/bin/python -m paper build >> $LOG 2>&1 # olivia-times"
-  echo "$PRINT_AT * * * cd $ROOT && .venv/bin/python -m paper print >> $LOG 2>&1 # olivia-times"
-} | crontab -
+echo "== Checking Chromium can start"
+if ! "$PY" - <<'EOF'
+from playwright.sync_api import sync_playwright
+with sync_playwright() as p:
+    p.chromium.launch().close()
+EOF
+then
+  cat <<'MSG'
+Chromium couldn't start, which usually means a system library is missing.
+On Bazzite, run the paper inside a Distrobox container instead:
+  distrobox create --name paper --image fedora:latest
+  distrobox enter paper -- bash scripts/install.sh
+MSG
+  exit 1
+fi
+
+echo "== Scheduling"
+# Print times from config.toml; each build starts 15 minutes before its print.
+read -r WEEKDAY WEEKEND < <("$PY" - <<'EOF'
+import tomllib
+s = tomllib.load(open("config.toml", "rb")).get("schedule", {})
+print(s.get("weekday", "06:50"), s.get("weekend", "07:30"))
+EOF
+)
+earlier() { date -d "$1 15 minutes ago" +%H:%M; }
+
+UNITS="$HOME/.config/systemd/user"
+mkdir -p "$UNITS"
+for job in build print; do
+  cat > "$UNITS/olivia-times-$job.service" <<EOF
+[Unit]
+Description=The Olivia Times ($job)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=$ROOT
+ExecStart=$PY -m paper $job
+EOF
+done
+
+timer() {  # name, weekday time, weekend time
+  cat > "$UNITS/olivia-times-$1.timer" <<EOF
+[Unit]
+Description=The Olivia Times ($1)
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* $2:00
+OnCalendar=Sat,Sun *-*-* $3:00
+# If the computer was off at print time, don't print late.
+Persistent=false
+
+[Install]
+WantedBy=timers.target
+EOF
+}
+timer build "$(earlier "$WEEKDAY")" "$(earlier "$WEEKEND")"
+timer print "$WEEKDAY" "$WEEKEND"
+
+systemctl --user daemon-reload
+systemctl --user enable --now olivia-times-build.timer olivia-times-print.timer
+# Keep the timers running when nobody is logged in.
+loginctl enable-linger "$USER" 2>/dev/null || echo "(Run 'sudo loginctl enable-linger $USER' so it prints even when you're logged out.)"
 
 echo
-echo "Installed. Next:"
-echo "  1. Put your keys in $ROOT/.env (nano .env)"
-echo "  2. Try it:   .venv/bin/python -m paper build --sample   (makes out/<date>-sample.pdf)"
-echo "  3. Avatar:   copy photos to data/photos/, then .venv/bin/python -m paper avatar make data/photos/*"
-echo "  4. Printer:  see README, then .venv/bin/python -m paper run"
+systemctl --user list-timers 'olivia-times-*' --no-pager || true
+cat <<EOF
+
+Installed. Prints at $WEEKDAY on weekdays and $WEEKEND on weekends.
+Next:
+  1. Put your keys in $ROOT/.env        (nano .env)
+  2. Try it:   $PY -m paper build --sample     -> out/<date>-sample.pdf
+  3. Avatar:   copy photos into data/photos/, then  $PY -m paper avatar make data/photos/*
+  4. Printer:  see the README, then  $PY -m paper run
+Logs: journalctl --user -u olivia-times-build -u olivia-times-print
+EOF

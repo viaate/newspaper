@@ -1,8 +1,11 @@
 anthropic>=1.0
 feedparser>=6.0
+icalendar>=6.0
 jinja2>=3.1
 pillow>=10.0
 playwright>=1.50
 pydantic>=2.0
+recurring-ical-events>=3.0
 requests>=2.31
 requests-oauthlib>=1.3
+tzdata

@@ -9,8 +9,13 @@ school = "Pembroke Hill School"
 latitude = 39.0186
 longitude = -94.6172
 timezone = "America/Chicago"
-print_time = "6:50 A.M."
 first_issue = "2026-10-12"   # Vol. 1, No. 1
+
+[schedule]
+# When it prints (shown on the front page too). scripts/install.sh schedules the
+# build 15 minutes earlier; rerun it after changing these.
+weekday = "06:50"
+weekend = "07:30"
 
 [grades]
 threshold = 92.5             # anything under this gets flagged
@@ -45,6 +50,7 @@ hacker_news = true
 # `python -m paper avatar make <photos>`, then `python -m paper avatar pick A`.
 enabled = true
 model = ""                   # blank = newest Gemini image model your key can use
+size = "2K"                  # sharper line art; "1K" is a few cents cheaper
 look = "a teenage girl with long, straight, light-blonde hair"
 # A different show's art style each day, in this order.
 styles = [
@@ -55,3 +61,21 @@ styles = [
 
 [printer]
 name = ""                    # printer name; blank uses the default printer
+
+# Countdowns on the front page: the next three still to come. Add school breaks,
+# birthdays, trips, the last day of school...
+[[countdown]]
+name = "Halloween"
+date = "2026-10-31"
+
+[[countdown]]
+name = "Thanksgiving"
+date = "2026-11-26"
+
+[[countdown]]
+name = "Christmas"
+date = "2026-12-25"
+
+[[countdown]]
+name = "New Year's Day"
+date = "2027-01-01"
