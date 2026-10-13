@@ -139,6 +139,35 @@ def crossword(entries, seed=0, max_size=12, tries=40):
 
 # ------------------------------------------------------------------ jumble
 
+# Everyday words that make a dull jumble answer, even when their letters match.
+FILLER = set("ABOUT AFTER AGAIN BEING COULD EVERY FIRST FROM HAVE INTO JUST LIKE MORE MOST ONLY OTHER OVER "
+             "SHOULD SINCE SOME THAN THAT THEIR THEM THEN THERE THESE THEY THIS THOSE UNDER UNTIL VERY WERE "
+             "WHAT WHEN WHERE WHICH WHILE WITH WOULD YOUR".split())
+
+
+def real_words(words, text, spares, count=4):
+    """Jumble entries that are real words from the paper. The writer sometimes hands back a
+    word already scrambled (NIKSOR for SORKIN); one that isn't in the paper is unscrambled
+    against it when its letters match a word there, or else swapped for a crossword answer."""
+    clean = lambda w: re.sub(r"[^A-Z]", "", str(w).upper())
+    vocab = {w.upper() for w in re.findall(r"[A-Za-z]{4,9}", text)}
+    vocab |= {w[:-1] for w in vocab if w.endswith("S") and len(w) > 4}  # "showers" in the paper allows SHOWER
+    vocab -= FILLER
+    by_letters = {"".join(sorted(w)): w for w in vocab}
+    out = []
+    same = lambda a, b: a.startswith(b) or b.startswith(a)  # SHOWER and SHOWERS are one word
+    for w in map(clean, words):
+        word = w if w in vocab else by_letters.get("".join(sorted(w)))
+        if word and not any(same(word, o) for o in out):
+            out.append(word)
+    for spare in map(clean, spares):
+        if len(out) >= count:
+            break
+        if 4 <= len(spare) <= 7 and not any(same(spare, o) for o in out):
+            out.append(spare)
+    return out[:count]
+
+
 def jumble(words, seed=0):
     rng = random.Random(seed)
     out = []

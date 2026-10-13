@@ -41,7 +41,8 @@ bash scripts/install.sh
 
 That installs everything inside the `newspaper` folder (no `sudo`, nothing added to the system)
 and schedules it with systemd timers: build at 6:35 and print at 6:50 on weekdays, build at
-7:15 and print at 7:30 on weekends. Change the times under `[schedule]` in `config.toml`, then
+7:15 and print at 7:30 on weekends. If the computer was off at build time, a catch-up timer makes that day's paper
+once it's back on (for the archive; it never prints late). Change the times under `[schedule]` in `config.toml`, then
 run the script again.
 
 ### 2. Keys

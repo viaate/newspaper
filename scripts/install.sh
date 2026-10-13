@@ -83,8 +83,33 @@ EOF
 timer build "$(earlier "$WEEKDAY")" "$(earlier "$WEEKEND")"
 timer print "$WEEKDAY" "$WEEKEND"
 
+# Catch-up: if the computer was off at build time, make that day's paper once it's back
+# (for the archive; it never prints). Checks after startup and then hourly in the day.
+cat > "$UNITS/olivia-times-catchup.service" <<EOF
+[Unit]
+Description=The Olivia Times (catch up after the computer was off)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=$ROOT
+ExecStart=$PY -m paper catchup
+EOF
+cat > "$UNITS/olivia-times-catchup.timer" <<EOF
+[Unit]
+Description=The Olivia Times (catch up after the computer was off)
+
+[Timer]
+OnBootSec=5min
+OnCalendar=*-*-* 08..21:10:00
+
+[Install]
+WantedBy=timers.target
+EOF
+
 systemctl --user daemon-reload
-systemctl --user enable --now olivia-times-build.timer olivia-times-print.timer
+systemctl --user enable --now olivia-times-build.timer olivia-times-print.timer olivia-times-catchup.timer
 # Keep the timers running when nobody is logged in.
 loginctl enable-linger "$USER" 2>/dev/null || echo "(Run 'sudo loginctl enable-linger $USER' so it prints even when you're logged out.)"
 

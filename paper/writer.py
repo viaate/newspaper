@@ -156,8 +156,10 @@ problem mirrors {reader}'s actual week; signed is a funny pen name plus "in {tow
 headline at most 7 words, body at most 25 words.
 - crossword: 9 entries. Each answer is one word, 3-9 letters, letters only, drawn from \
 {reader}'s week (classes, topics, assignments, weather, tech news). Crossword-style clues, at \
-most 9 words; never put the answer in its clue.
-- jumble: 4 words, 5 or 6 letters each, from {reader}'s day.
+most 9 words; never put the answer in its clue. Each answer should also appear somewhere in today's \
+paper, so it can be found on another page.
+- jumble: 4 words, 5 or 6 letters each, from {reader}'s day and used in today's paper, written normally \
+(not scrambled; the paper scrambles them).
 - sat: the PSAT/SAT question of the day, as exactly 8 strings in this order: section ("Math" on \
 odd days of the month, "Reading and Writing" on even days); the question, original, digital-SAT \
 style at PSAT difficulty, at most 70 words (a short passage plus its question for Reading and \

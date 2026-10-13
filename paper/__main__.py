@@ -65,6 +65,17 @@ def _snow_watch(forecast):
     return [f"No snow in the forecast through {ahead[-1]['date'].strftime('%A')}."]
 
 
+def _build_due(cfg, day):
+    """When the day's build is scheduled: 15 minutes before its print time."""
+    h, m = (int(x) for x in cfg["schedule"]["weekend" if day.weekday() >= 5 else "weekday"].split(":"))
+    return datetime.combine(day, datetime.min.time()).replace(hour=h, minute=m) - timedelta(minutes=15)
+
+
+def catchup_needed(cfg, day, now):
+    """True when today's build time has passed and there's still no paper (the computer was off)."""
+    return now >= _build_due(cfg, day) and not (cfg["out_dir"] / f"{day}.pdf").exists()
+
+
 def _print_time(cfg, day):
     """Today's print time from [schedule], like "6:50 A.M."."""
     hhmm = cfg["schedule"]["weekend" if day.weekday() >= 5 else "weekday"]
@@ -213,7 +224,9 @@ def build(cfg, sample=False, today=None, png=False):
     # Page 3: today's puzzles, and the answers to yesterday's.
     seed = today.toordinal()
     crossword = puzzles.crossword([(c["answer"], c["clue"]) for c in edition["crossword"]], seed)
-    scrambles = puzzles.jumble(edition["jumble"], seed)
+    words = puzzles.real_words(edition.get("jumble") or [], json.dumps({k: v for k, v in edition.items() if k != "jumble"}, default=str),
+                               [c["answer"] for c in edition.get("crossword") or []])
+    scrambles = puzzles.jumble(words, seed)
     answers = puzzles.yesterdays_answers(cfg["data_dir"], today)
     sat = None
     if edition.get("sat_question") and edition.get("sat_answer"):
@@ -298,7 +311,7 @@ def _update_archive(cfg):
 
 def main():
     ap = argparse.ArgumentParser(description="The morning paper.")
-    ap.add_argument("command", choices=["build", "print", "run", "avatar", "check", "archive"])
+    ap.add_argument("command", choices=["build", "print", "run", "avatar", "check", "archive", "catchup"])
     ap.add_argument("args", nargs="*", help="for avatar: make PHOTO... | pick LETTER; for archive: publish")
     ap.add_argument("--sample", action="store_true", help="use sample grades, email and features")
     ap.add_argument("--png", action="store_true", help="also save PNGs of the pages")
@@ -330,6 +343,14 @@ def main():
         return
 
     today = args.date or date.today()
+    if args.command == "catchup":
+        # After the computer was off at build time: make the day's paper for the archive, never print.
+        if catchup_needed(cfg, today, datetime.now()):
+            build(cfg, today=today)
+            _update_archive(cfg)
+        else:
+            print("catch-up: nothing to do")
+        return
     pdf = cfg["out_dir"] / f"{today}{'-sample' if args.sample else ''}.pdf"
     # `print` builds first if this morning's paper isn't there, so it never reprints yesterday's.
     if args.command in ("build", "run") or not pdf.exists():
