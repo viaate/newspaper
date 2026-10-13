@@ -112,8 +112,9 @@ printer.
   digest" (claude.ai/code → Routines), which wakes a session at 6:05 each morning that lists
   last night's sessions and writes `data/overnight/cloud-main.json`.
 
-- **Socials and money.** Public numbers only, no logins: TikTok followers, likes and views
-  (via yt-dlp), and Instagram's rounded follower count. TikTok pay is estimated from views
+- **Socials and money.** Public numbers only, no logins: TikTok followers and likes, every
+  video's views, likes, comments, shares and saves, your top video since the last paper and
+  your newest one; Instagram only shows a rounded follower count and post count without a login. TikTok pay is estimated from views
   gained since the last paper × `tiktok_qualified` × `tiktok_rpm` per 1,000 (`[social]`).
   Gumroad sales come from its "New sale of … for $…" emails.
 - **The price.** The front page's price is what that issue cost to make: paper
