@@ -147,11 +147,11 @@ doing, where, and props, in one or two sentences; she is the only person in the 
 unnamed background people; never include characters from {comic_style}. balloon is what she \
 says, at most 9 words. caption is 2-4 words, like "Almost done" or "Heading to class". The \
 third panel lands a small joke.
-- dear: a "Dear {reader}" advice column. letter is 40-60 words from an imaginary reader whose \
+- dear: a "Dear {reader}" advice column. letter is 35-50 words from an imaginary reader whose \
 problem mirrors {reader}'s actual week; signed is a funny pen name plus "in {town}". reply is \
-50-70 words of genuinely useful, funny advice. headline is the letter's question, at most 10 words.
+45-60 words of genuinely useful, funny advice. headline is the letter's question, at most 10 words.
 - classifieds: 3 ads, one each of WANTED, FOR SALE and NOTICES, funny and about {reader}'s week. \
-headline at most 7 words, body at most 30 words.
+headline at most 7 words, body at most 25 words.
 - crossword: 9 entries. Each answer is one word, 3-9 letters, letters only, drawn from \
 {reader}'s week (classes, topics, assignments, weather, tech news). Crossword-style clues, at \
 most 9 words; never put the answer in its clue.
@@ -161,7 +161,8 @@ odd days of the month, "Reading and Writing" on even days); the question, origin
 style at PSAT difficulty, at most 70 words (a short passage plus its question for Reading and \
 Writing); choices A, B, C and D as four separate strings without letters; the letter of the one \
 correct choice; and at most 25 words on why, which prints tomorrow. Solve it yourself and make \
-sure exactly one choice is right and the others are clearly wrong.
+sure exactly one choice is right. Never state or paraphrase the answer in the passage or question; \
+the wrong choices should be tempting (a real PSAT trap), not silly.
 
 PAGE 4, the ledger (grades, limits and money print from the data; you write only this):
 - overnight: one line per item in overnight_sessions, in the same order, each at most 28 \

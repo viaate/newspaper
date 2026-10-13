@@ -204,6 +204,8 @@ def build(cfg, sample=False, today=None, png=False):
     edition = writer.write(cfg, ctx, style, print_time)
     if edition is None:
         edition = writer.fallback(cfg, ctx, style, sample_copy)
+    # What was written, kept beside the PDF (handy for fixing a layout without rewriting it).
+    (cfg["out_dir"] / f"{today}{'-sample' if sample else ''}.json").write_text(json.dumps(edition, indent=1, default=str), encoding="utf-8")
 
     # Page 3: today's puzzles, and the answers to yesterday's.
     seed = today.toordinal()

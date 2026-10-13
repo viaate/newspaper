@@ -233,16 +233,10 @@ img { display: block; }
 .review .v { font-family: var(--display); font-weight: 900; font-size: 15pt; line-height: 1.05; margin-bottom: 2pt; }
 
 /* ---------- A3 the PSAT question ---------- */
-.puzzle-row { display: grid; grid-template-columns: 2.7in minmax(0, 1fr); align-items: start; }
-.puzzle-row > div { min-width: 0; }
-.puzzle-row .jumble { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 8pt; row-gap: 8pt; padding-right: 14pt; }
-.puzzle-row .jumble .word { min-width: 0; }
-/* boxes shrink to fit a long word rather than running into the question */
-.puzzle-row .jumble .boxes span { flex: 0 1 0.17in; height: auto; aspect-ratio: 1; min-width: 0; }
-.puzzle-row .sat { border-left: 0.6pt solid var(--rule); padding-left: 14pt; }
-.sat .q { font-size: 8.8pt; line-height: 1.32; margin: 0 0 4pt; }
-.sat ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2pt 12pt; font-size: 8.6pt; line-height: 1.3; }
-.sat ol li b { font-family: var(--sans); font-size: 7pt; font-weight: 700; margin-right: 4pt; }
+.sat .q { font-size: 9pt; line-height: 1.35; margin: 0 0 5pt; max-width: 6.6in; }
+.sat ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3pt 18pt; font-size: 8.8pt; line-height: 1.3; }
+.sat ol li { display: grid; grid-template-columns: 11pt 1fr; }
+.sat ol li b { font-family: var(--sans); font-size: 7.4pt; font-weight: 700; padding-top: 1pt; }
 
 /* ---------- A4 the ledger ---------- */
 .ledger { display: grid; grid-template-columns: minmax(0, 1fr) 2.5in; column-gap: 14pt; margin-top: 8pt; }
@@ -587,26 +581,20 @@ img { display: block; }
     </div>
   </div>
 
-  {% set has_sat = edition.sat_question and edition.sat_choices|length == 4 %}
-  {% if scrambles or has_sat %}
-  <div class="{{ 'puzzle-row' if has_sat and scrambles }}">
-    {% if scrambles %}
-    <div>
-      <h3 class="section-head"><span>Jumble</span><span class="aside">{{ 'Words from your day' if has_sat else 'Unscramble these words from your day' }}</span></h3>
-      <div class="jumble">
-        {% for j in scrambles %}
-        <div class="word"><div class="letters">{{ j.scrambled }}</div><div class="boxes">{% for _ in j.answer %}<span></span>{% endfor %}</div></div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-    {% if has_sat %}
-    <div class="sat">
-      <h3 class="section-head"><span>PSAT Question</span><span class="aside">{{ edition.sat_section }} · Answer tomorrow</span></h3>
-      <p class="q">{{ edition.sat_question }}</p>
-      <ol>{% for c in edition.sat_choices %}<li><b>{{ 'ABCD'[loop.index0] }}</b>{{ c }}</li>{% endfor %}</ol>
-    </div>
-    {% endif %}
+  {% if scrambles %}
+  <h3 class="section-head"><span>Jumble</span><span class="aside">Unscramble these words from your day</span></h3>
+  <div class="jumble">
+    {% for j in scrambles %}
+    <div class="word"><div class="letters">{{ j.scrambled }}</div><div class="boxes">{% for _ in j.answer %}<span></span>{% endfor %}</div></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if edition.sat_question and edition.sat_choices|length == 4 %}
+  <div class="sat">
+    <h3 class="section-head"><span>PSAT Question</span><span class="aside">{{ edition.sat_section }} · Answer in tomorrow's paper</span></h3>
+    <p class="q">{{ edition.sat_question }}</p>
+    <ol>{% for c in edition.sat_choices %}<li><b>{{ 'ABCD'[loop.index0] }}</b><span>{{ c }}</span></li>{% endfor %}</ol>
   </div>
   {% endif %}
 
