@@ -10,6 +10,8 @@ latitude = 39.0186
 longitude = -94.6172
 timezone = "America/Chicago"
 first_issue = "2026-10-12"   # Vol. 1, No. 1
+# Who the paper is for, so the front page's Feature picks stories that land.
+interests = "a high school student who likes tech"
 
 [schedule]
 # When it prints (shown on the front page too). scripts/install.sh schedules the
@@ -61,7 +63,17 @@ local_feeds = [
 world_feeds = [
   "https://feeds.bbci.co.uk/news/world/rss.xml",
 ]
+interest_feeds = [            # the front page's Feature, on days without school lunch
+  "https://www.gamedeveloper.com/rss.xml",
+  "https://www.rockpapershotgun.com/feed",
+  "https://www.tubefilter.com/feed/",
+  "https://www.theverge.com/rss/creators/index.xml",
+  "https://www.quantamagazine.org/feed/",
+  "https://www.livescience.com/feeds/all",
+  "https://www.sciencenews.org/feed",
+]
 hacker_news = true
+max_age_days = 7              # no story older than this; the newest are picked first
 
 [comic]
 # A black-and-white daily strip starring your avatar, drawn by Google's Gemini

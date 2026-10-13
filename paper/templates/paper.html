@@ -224,6 +224,12 @@ img { display: block; }
 .ad p { font-size: 8.2pt; margin: 0; }
 .answers { font-size: 7pt; color: #333; margin-top: 8pt; border-top: 0.4pt solid var(--hair); padding-top: 3pt; }
 .answers b { font-family: var(--sans); font-size: 6pt; letter-spacing: 0.1em; }
+/* ---------- A1 the Feature (days without school lunch) ---------- */
+.feature h4 { font-family: var(--display); font-weight: 900; font-size: 17pt; line-height: 1.08; margin: 0 0 5pt; text-wrap: balance; }
+.feature .photo { float: right; width: 2in; height: 1.45in; object-fit: cover; margin: 1pt 0 4pt 10pt; }
+.feature p { font-size: 9.2pt; line-height: 1.34; text-align: justify; hyphens: auto; margin: 0; }
+.feature .source { clear: both; padding-top: 3pt; }
+
 /* ---------- A1 Sunday: the week in review ---------- */
 .week-line { font-size: 9.6pt; line-height: 1.35; margin: 0 0 6pt; }
 .review { display: grid; grid-template-columns: 1fr 1fr; border-top: 0.6pt solid var(--ink); }
@@ -412,7 +418,15 @@ img { display: block; }
       </div>
       {% endif %}
 
-      {% if lunch %}
+      {% if edition.feature %}{% set f = edition.feature %}
+      <section class="feature" data-fit="optional">
+        <h3 class="section-head"><span>The Feature</span><span class="aside">Picked for you{% if lunch and lunch.no_school %} · no school today{% endif %}</span></h3>
+        <h4>{{ f.headline }}</h4>
+        {% if feature_photo %}<img class="photo" src="{{ feature_photo }}" alt="" data-fit="photo">{% endif %}
+        <p data-fit="trim">{{ f.body }}</p>
+        {% if f.source %}<div class="source">{{ f.source }}</div>{% endif %}
+      </section>
+      {% elif lunch %}
       <h3 class="section-head"><span>Lunch</span><span class="aside">{{ campus }}</span></h3>
       {% if lunch.no_school %}
       <p class="lunch-line"><b>{{ lunch.note or 'No school' }} today.</b></p>

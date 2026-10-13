@@ -2,6 +2,8 @@
 
 import json
 import re
+from datetime import datetime, timezone
+
 import anthropic
 from pydantic import BaseModel, ValidationError
 
@@ -134,10 +136,24 @@ page with it. Empty string if there's no menu.
 
 PAGE 2, the briefing. Keep it right for a high schooler's breakfast: skip stories centered on \
 sexual crimes or graphic violence, and write about hard news plainly, without gore.
-- tech: exactly 5 stories a tech-curious teenager would find most interesting, one per piece \
+News rules: every item in tech_news, local_news, world_news and interest_news is from the past \
+week, newest first, with its hours_old, and none has run in this paper before. Strongly favor \
+the newest: pick from the last day or so, and reach further back only for a story that's clearly \
+better and still current. Skip anything that's gone stale by today (an event that's over, a \
+deadline or sale that's passed, a rumor or plan a newer item settles; use the newest item on \
+any story), and skip items reporting the same news as news_already_run unless there's a real \
+new development.
+- tech: 5 stories a tech-curious teenager would find most interesting, one per piece \
 of news. The first is the lead: 90-120 words. The rest: 45-65 words. Explain what happened \
 and why it matters. If an item has no summary, keep the body to what its headline says. url \
 and source copied exactly from the chosen item.
+  When front_page_has_room is true (no school lunch today, so the space is free), add a 6th \
+story after those 5: the front page's Feature. It's the one item in interest_news or tech_news \
+(never one of the 5) most likely to fascinate {reader}, who is {interests}. Prefer surprising, \
+specific stories (a game launch or shutdown, a creator-business twist, a strange scientific \
+finding, an app or startup story) over routine product news. headline at most 10 words; body \
+140-180 words: what happened, why it's interesting, and what someone who makes videos, games \
+and apps might take from it, using only what the item says. Otherwise exactly 5.
 - local: 3 Kansas City-area stories from local_news, source copied from the item. headline at most 10 words, body 30-45 words.
 - world: 4 stories from world_news, source copied from the item. headline at most 10 words, body 20-30 words.
 
@@ -180,8 +196,12 @@ def _facts(ctx, style):
     def day(d):
         return fmt(d, "%A %b %-d") or None
 
-    def stories(items, limit):
-        return [{"url": n["url"], "source": n["source"], "title": n["title"], "summary": n["summary"]}
+    now = datetime.now(timezone.utc)
+
+    def stories(items, limit, chars=900):
+        return [{"url": n["url"], "source": n["source"], "title": n["title"], "summary": n["summary"][:chars],
+                 "published": fmt(n["published"].astimezone(), "%a %b %-d, %I:%M %p"),
+                 "hours_old": round((now - n["published"]).total_seconds() / 3600)}
                 for n in items[:limit]]
 
     return json.dumps({
@@ -226,6 +246,10 @@ def _facts(ctx, style):
         "tech_news": stories(ctx["news"]["tech"], 30),
         "local_news": stories(ctx["news"]["local"], 20),
         "world_news": stories(ctx["news"]["world"], 20),
+        # A few from every source, each source's newest first.
+        "interest_news": stories(_round_robin(ctx["news"].get("interest", []), 36), 36, chars=500),
+        "news_already_run": ctx.get("past_stories", [])[:80],
+        "front_page_has_room": bool(ctx.get("front_page_has_room")),
         "gumroad_sales_this_week": [
             {"product": g["product"], "price_usd": g["amount"], "sold": fmt(g["when"], "%a %b %-d, %I:%M %p")}
             for g in ctx.get("gumroad", []) if (ctx["today"] - g["when"].date()).days < 7
@@ -266,6 +290,7 @@ def write(cfg, ctx, style, print_time):
         name=p["name"], reader=p["reader"], school=p.get("school", "school"), city=p["city"],
         town=p["city"].split(",")[0], print_time=print_time,
         threshold=cfg["grades"]["threshold"], comic_style=style,
+        interests=p.get("interests", "a high school student"),
     )
     try:
         # Haiku 5.5 thinks before it writes, and the thinking counts against max_tokens:
@@ -293,6 +318,15 @@ def write(cfg, ctx, style, print_time):
     if clash := headlines.too_close(out["headline"], earlier):
         print(f"writer: headline too close to an earlier one ({clash!r}); rewriting it")
         out["headline"] = headlines.rewrite(cfg, client(cfg), MODEL, out, earlier, clash)
+    # The Feature rides along as a 6th tech story (one more field would overflow the
+    # structured-output grammar); its source comes from the item it chose.
+    extra = out["tech"][5:]
+    out["tech"] = out["tech"][:5]
+    f = extra[0] if extra and ctx.get("front_page_has_room") and extra[0]["headline"] and extra[0]["body"] else None
+    if f:
+        picked = next((n for n in ctx["news"].get("interest", []) + ctx["news"]["tech"] if n["url"] == f["url"]), None)
+        f["source"] = picked["source"] if picked else f["source"]
+    out["feature"] = f
     sat = out.pop("sat", []) + [""] * 8
     out.update(sat_section=sat[0], sat_question=sat[1], sat_choices=[c for c in sat[2:6] if c], sat_answer=sat[6], sat_why=sat[7])
     return out
@@ -397,6 +431,7 @@ def fallback(cfg, ctx, style, sample_copy=None):
     if edition.get("comic") and not edition["comic"].get("title"):
         edition["comic"]["title"] = comic_art.fallback_title(style, reader)
     edition.setdefault("lunch_line", _lunch_line(ctx["lunch"]))
+    edition.setdefault("feature", None)
     for k, v in (("sat_section", ""), ("sat_question", ""), ("sat_choices", []), ("sat_answer", ""), ("sat_why", ""), ("week_line", "")):
         edition.setdefault(k, v)
     edition.setdefault("overnight", [_sentences(o["last_reply"] or o["first_ask"], 28) for o in ctx.get("overnight", [])])

@@ -15,7 +15,7 @@ import shutil
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import comic, config, grades, headlines, images, printer, puzzles, render, spend, writer
+from . import comic, config, grades, headlines, images, printer, puzzles, render, seen, spend, writer
 from . import week as weekly
 from .dates import fmt
 from .sources import ai_usage, calendars, codex, gmail, lunch, news, overnight, schoology, social, sports, weather
@@ -105,6 +105,16 @@ def _photos(cfg, today, stories, news_items):
     return found
 
 
+def _feature_photo(cfg, today, feature, stories):
+    """A newsprint photo for the front page's Feature, when its story has one."""
+    if not feature or not feature.get("url"):
+        return None
+    item = next((n for section in stories.values() for n in section if n["url"] == feature["url"]), {})
+    source = item.get("image") or images.find_image(feature["url"])
+    path = images.newsprint(source, cfg["out_dir"] / f"{today}-photo-feature.png") if source else None
+    return Path(path).as_uri() if path else None
+
+
 def _volume_and_number(cfg, today):
     """A new volume every January 1, and issue numbers that start over with it."""
     first = date.fromisoformat(cfg["paper"].get("first_issue", today.isoformat()))
@@ -131,14 +141,15 @@ def build(cfg, sample=False, today=None, png=False):
     ledger_start = spend.mark(cfg)  # this issue's API costs are what's added after here
 
     # One bad source shouldn't stop the paper, so each is fetched on its own.
-    forecast, stories = None, {"tech": [], "local": [], "world": []}
+    forecast, stories = None, {"tech": [], "local": [], "world": [], "interest": []}
+    printed = seen.load(cfg, today)
     try:
         forecast = weather.fetch(cfg)
     except Exception as e:
         notes.append("Weather was unavailable this morning.")
         print(f"weather: {e}")
     try:
-        stories = news.fetch(cfg)
+        stories = seen.unseen(news.fetch(cfg), printed, today)
     except Exception as e:
         notes.append("News was unavailable this morning.")
         print(f"news: {e}")
@@ -211,6 +222,9 @@ def build(cfg, sample=False, today=None, png=False):
         "lunch": menu, "chiefs": chiefs, "overnight": slept, "gumroad": gumroad, "socials": socials,
         "teacher_notes": notes_from_teachers, "week_review": week_review,
         "past_titles": headlines.load(cfg, today),
+        "past_stories": [r["headline"] for r in printed if (today - date.fromisoformat(r["date"])).days <= 10],
+        # No lunch menu (no school, or a weekend) and no Sunday review leaves the front page's lower half free.
+        "front_page_has_room": not (menu and not menu.get("no_school")) and not week_review,
     }
 
     edition = writer.write(cfg, ctx, style, print_time)
@@ -218,6 +232,7 @@ def build(cfg, sample=False, today=None, png=False):
         edition = writer.fallback(cfg, ctx, style, sample_copy)
     if not sample:
         headlines.save(cfg, today, edition)
+        seen.save(cfg, today, edition, stories)
     # What was written, kept beside the PDF (handy for fixing a layout without rewriting it).
     (cfg["out_dir"] / f"{today}{'-sample' if sample else ''}.json").write_text(json.dumps(edition, indent=1, default=str), encoding="utf-8")
 
@@ -271,6 +286,7 @@ def build(cfg, sample=False, today=None, png=False):
         "threshold": threshold,
         "week": _week_by_day(week, today),
         "photos": _photos(cfg, today, edition["tech"], stories["tech"]),
+        "feature_photo": _feature_photo(cfg, today, edition.get("feature"), stories),
         "style": style,
         "strip": strip,
         "has_avatar": comic.avatar_path(cfg).exists(),

@@ -5,8 +5,8 @@ bed, so the day starts without a phone. Inspired by Karen X. Cheng's newspaper b
 
 | Page | What's on it |
 |---|---|
-| **A1 · Front page** | A headline about your day; today's agenda (calendar events, what's due, anything an email says is today); Grade Watch (classes under 92.5, with what would fix them and the change since yesterday); new teacher comments on graded work; on Sundays, the week in review (grades, TikTok, money, what Claude built); today's school lunch (Ward Parkway); weather with what to wear; Snow Day Watch; packages arriving today; emails that need a look; last night's Chiefs score (only after a game); countdowns |
-| **A2 · The Briefing** | Five tech stories with newsprint photos, Kansas City news, and the world in brief |
+| **A1 · Front page** | A headline about your day; today's agenda (calendar events, what's due, anything an email says is today); Grade Watch (classes under 92.5, with what would fix them and the change since yesterday); new teacher comments on graded work; on Sundays, the week in review (grades, TikTok, money, what Claude built); today's school lunch (Ward Parkway), or on days without it, The Feature: one recent story picked for you from games, creator, science and tech news; weather with what to wear; Snow Day Watch; packages arriving today; emails that need a look; last night's Chiefs score (only after a game); countdowns |
+| **A2 · The Briefing** | Five tech stories with newsprint photos, Kansas City news, and the world in brief. Every story is from the past week (the newest are picked first), still current, and never one the paper has run before |
 | **A3 · Puzzles & Funnies** | A black-and-white daily comic starring your cartoon avatar, drawn in a different adult cartoon's style each day; a crossword built from your week; a "Dear Olivia" advice column; a jumble; a PSAT/SAT question of the day; classifieds; yesterday's answers, the PSAT one with why |
 | **A4 · The Ledger** | Report card for every class with an estimated GPA (unweighted and weighted); tests and big grades marked this week; everything missing or zeroed, including what Schoology's Missing tab skips; the week ahead with tests in bold; what Claude worked on overnight; how much of each Claude account's limits is used; what the Claude and Gemini keys have spent and what's left; money in (Gumroad sales from email, and an estimate of TikTok pay); TikTok and Instagram followers and views |
 
@@ -160,7 +160,9 @@ paper/
   sources/weather.py    Open-Meteo, falling back to weather.gov
   sources/lunch.py      today's menu from the Pembroke Hill dining page
   sources/sports.py     yesterday's Chiefs game from ESPN's public feed
-  sources/news.py       The Verge, TechCrunch, Hacker News, KCUR, KSHB, BBC
+  sources/news.py       The Verge, TechCrunch, Hacker News, KCUR, KSHB, BBC, plus the Feature's
+                        games, creator and science feeds; a week old at most, newest first
+  seen.py               every story printed (data/stories.json), so none runs twice
   sources/ai_usage.py   each Claude account's 5-hour and weekly limits, via Claude Code
   sources/overnight.py  Claude sessions since last night, from this PC and the morning routine
   grades.py             under-92.5 flags, day-over-day changes and the GPA estimate
@@ -171,7 +173,7 @@ paper/
   writer.py             Claude Haiku 5.5 writes all three pages (structured output)
   comic.py              the daily strip and the avatar, via Gemini
   puzzles.py            crossword layout, jumble, yesterday's answers
-  render.py             HTML → PDF with headless Chromium; shrinks a crowded page to fit
+  render.py             HTML → PDF with headless Chromium; trims the Feature, then shrinks a crowded page to fit
   templates/paper.html  the layout
 ```
 
