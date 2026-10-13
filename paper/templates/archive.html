@@ -602,7 +602,7 @@ addEventListener("hashchange", () => { if (KEY) route(); });
 
 // ---------- printing ----------
 // Browsers only open print and share dialogs straight from a tap, so everything is made
-// ahead of time: the page images for print(), and a PDF of them for sharing or saving.
+// ahead of time: the page images for print(), and the PDF for sharing or saving.
 // iPhones get the share sheet (it has Print, and works where print() doesn't, such as
 // home-screen apps and in-app browsers); other devices get the print dialog.
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -628,7 +628,7 @@ function pdfOf(pages) {  // one letter-size page per image
   obj(2, () => put(`<< /Type /Pages /Kids [${pages.map((_, i) => `${3 + i * 3} 0 R`).join(" ")}] /Count ${pages.length} >>`));
   pages.forEach((pg, i) => {
     const id = 3 + i * 3, draw = `q 612 0 0 792 0 0 cm /P${i} Do Q`;
-    obj(id, () => put(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /XObject << /P${i} ${id + 2} 0 R >> >> /Contents ${id + 1} 0 R >>`));
+    obj(id, () => put(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /CropBox [0 0 612 792] /Rotate 0 /Resources << /XObject << /P${i} ${id + 2} 0 R >> >> /Contents ${id + 1} 0 R >>`));
     obj(id + 1, () => put(`<< /Length ${draw.length} >>\nstream\n${draw}\nendstream`));
     obj(id + 2, () => { put(`<< /Type /XObject /Subtype /Image /Width ${pg.w} /Height ${pg.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pg.bytes.length} >>\nstream\n`); put(pg.bytes); put("\nendstream"); });
   });
@@ -644,7 +644,11 @@ function preparePrint(issue) {
     if (ready !== mine) return false;
     $("#printout").innerHTML = srcs.map(src => `<img src="${src}" alt="">`).join("");
     await Promise.all($$("#printout img").map(img => img.decode().catch(() => {})));
-    const name = `the-olivia-times-${issue.date}.pdf`, blob = pdfOf(await Promise.all(srcs.map(jpeg)));
+    // The paper's own PDF when the archive has it (sharp text, upright pages); older issues
+    // get one made from the page images.
+    const name = `the-olivia-times-${issue.date}.pdf`;
+    const blob = issue.pdf ? new Blob([await decrypt(await (await fetch(`data/${issue.date}/paper.bin`)).arrayBuffer())], { type: "application/pdf" })
+                           : pdfOf(await Promise.all(srcs.map(jpeg)));
     if (ready !== mine) return false;
     mine.file = new File([blob], name, { type: "application/pdf" });
     mine.url = URL.createObjectURL(blob); mine.name = name;

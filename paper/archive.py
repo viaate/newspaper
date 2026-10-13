@@ -29,6 +29,7 @@ from .config import ROOT
 
 ITERATIONS = 1_000_000
 DETAILS = 2  # bump when _details() learns a new field
+PACK = 2     # bump when the files made per issue change (2: added the printable PDF)
 SITE = ROOT / "site"
 ISSUE = re.compile(r"^(\d{4}-\d{2}-\d{2})\.pdf$")
 
@@ -50,6 +51,18 @@ def _webp(img, width, quality):
         img.save(f, "WEBP", quality=quality, method=6)
         f.seek(0)
         return f.read()
+
+
+def _printable(pdf):
+    """The issue's PDF, shrunk for the site (the comic and photos at 150 dpi; text stays sharp)."""
+    if shutil.which("gs"):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "small.pdf"
+            run = subprocess.run(["gs", "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", "-sDEVICE=pdfwrite", "-dPDFSETTINGS=/ebook",
+                                  "-dCompatibilityLevel=1.6", f"-sOutputFile={out}", str(pdf)], capture_output=True)
+            if run.returncode == 0 and out.exists() and out.stat().st_size < pdf.stat().st_size:
+                return out.read_bytes()
+    return pdf.read_bytes()
 
 
 def _details(cfg, day):
@@ -115,6 +128,10 @@ def build(cfg):
         shutil.rmtree(data, ignore_errors=True)
         data.mkdir(parents=True)
         manifest = {"key": fingerprint, "issues": {}}
+    if manifest.get("pack") != PACK:  # issues need files they don't have yet: redo them all
+        for issue in manifest["issues"].values():
+            issue["stamp"] = None
+        manifest["pack"] = PACK
     if manifest.get("details") != DETAILS:  # the site wants new fields: reread every issue's page
         for day, issue in manifest["issues"].items():
             manifest["issues"][day] = {"stamp": issue["stamp"], "pages": issue["pages"], **_details(cfg, day)}
@@ -141,7 +158,8 @@ def build(cfg):
                 (folder / f"p{n}.bin").write_bytes(_seal(key, _webp(img, 1100, 80)))
                 if n == 1:
                     (folder / "thumb.bin").write_bytes(_seal(key, _webp(img, 480, 72)))
-        manifest["issues"][day] = {"stamp": stamp, **_details(cfg, day), "pages": len(pages)}
+        (folder / "paper.bin").write_bytes(_seal(key, _printable(pdf)))
+        manifest["issues"][day] = {"stamp": stamp, **_details(cfg, day), "pages": len(pages), "pdf": True}
         changed += 1
 
     # Issues whose PDF is gone stay in the archive: it's the record.
