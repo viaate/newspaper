@@ -23,7 +23,7 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from .config import ROOT
 
@@ -82,6 +82,21 @@ def _details(cfg, day):
     return out
 
 
+def _icon(size, rule=True):
+    """The site's icon: the nameplate's blackletter T on ink, with the masthead's red rule."""
+    s = size * 4  # drawn large, then shrunk, for clean edges
+    img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([0, 0, s - 1, s - 1], radius=int(s * .2), fill=(23, 20, 15, 255))
+    font = ImageFont.truetype(str(ROOT / "paper/fonts/UnifrakturMaguntia-400.ttf"), int(s * (.78 if rule else .98)))
+    box = d.textbbox((0, 0), "T", font=font)
+    lift = s * (.05 if rule else 0)
+    d.text(((s - box[2] - box[0]) / 2, (s - box[3] - box[1]) / 2 - lift), "T", font=font, fill=(244, 239, 229, 255))
+    if rule:
+        d.rectangle([s * .22, s * .82, s * .78, s * .82 + s * .045], fill=(216, 56, 42, 255))
+    return img.resize((size, size), Image.LANCZOS)
+
+
 def build(cfg):
     """Encrypt any new or changed issues into site/ and rewrite the index. Returns the count."""
     passcode = str(cfg.get("archive", {}).get("passcode", ""))
@@ -135,6 +150,10 @@ def build(cfg):
     meta_path.write_text(json.dumps(meta))
     (SITE / "index.html").write_text((ROOT / "paper/templates/archive.html").read_text(encoding="utf-8"), encoding="utf-8")
     (SITE / ".nojekyll").write_text("")
+    if not (SITE / "icon-512.png").exists():
+        _icon(48, rule=False).save(SITE / "favicon.png")
+        _icon(180).save(SITE / "apple-touch-icon.png")
+        _icon(512).save(SITE / "icon-512.png")
     manifest_path.write_text(json.dumps(manifest, indent=1))
     return changed
 
