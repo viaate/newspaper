@@ -202,11 +202,17 @@ footer p { margin: 0; color: var(--soft); font-family: var(--sans); font-size: 1
 .r-page { scroll-margin-top: 120px; }
 .r-page .label { display: flex; justify-content: space-between; align-items: baseline; padding: 0 12px 8px; font-family: var(--sans); font-size: 13px; color: var(--soft); }
 .r-page .label b { color: var(--ink); font-weight: 700; }
-.r-page .label a { color: var(--soft); }
+.r-page .label a, .r-page .label button { color: var(--soft); }
+.r-page .label .tools { display: flex; gap: 16px; }
+.r-page .label button { background: none; border: 0; padding: 0; font: inherit; text-decoration: underline; text-underline-offset: .18em; }
+.r-end .print-end { font-family: var(--sans); font-size: 15px; font-weight: 700; padding: 12px 18px; border: 1px solid var(--rule2); border-radius: 6px; background: none; }
+.r-end .print-end:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.choice:disabled { opacity: .6; cursor: progress; }
 .r-page .sheet-big { position: relative; aspect-ratio: 8.5 / 11; background: #fffdf8; box-shadow: var(--shadow); }
 .r-page .sheet-big img { width: 100%; height: 100%; display: block; opacity: 0; transition: opacity .35s; }
 .r-page .sheet-big img.ready { opacity: 1; }
-.r-end { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 6px 12px 0; }
+.r-end { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 6px 12px 0; }
+.r-end > :first-child { justify-self: start; } .r-end > :last-child { justify-self: end; }
 .r-end a { font-family: var(--sans); font-size: 15px; font-weight: 700; text-decoration: none; padding: 12px 18px; border: 1px solid var(--rule2); border-radius: 6px; }
 .r-end a:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
@@ -261,7 +267,7 @@ footer p { margin: 0; color: var(--soft); font-family: var(--sans); font-size: 1
   .read { width: 100%; justify-content: center; }
   .r-top .wrap { gap: 10px; }
   .r-title { order: 0; flex-basis: calc(100% - 150px); }
-  .r-print { order: 4; width: 100%; justify-content: center; }
+  .r-top .r-print { display: none; }
   .r-jump { order: 3; width: 100%; justify-content: space-between; }
   .r-jump a { flex: 1; text-align: center; border-color: var(--rule); }
   .r-pages { padding: 14px 0 32px; gap: 26px; }
@@ -562,10 +568,13 @@ function route() {
     $("#r-older").disabled = !older; $("#r-newer").disabled = !newer;
     $("#jump").innerHTML = Array.from({ length: total }, (_, n) => `<a href="#/${issue.date}/${n + 1}" data-p="${n + 1}">A${n + 1}</a>`).join("");
     $("#rpages").innerHTML = Array.from({ length: total }, (_, n) => `<section class="r-page" id="pg${n + 1}">
-        <div class="label"><span><b>A${n + 1}</b> · ${PAGE_NAMES[n] || "Page " + (n + 1)}</span><a class="full" target="_blank" rel="noopener" hidden>Full size</a></div>
+        <div class="label"><span><b>A${n + 1}</b> · ${PAGE_NAMES[n] || "Page " + (n + 1)}</span><span class="tools">${n === 0 ? '<button class="print-link" type="button">Print</button>' : ""}<a class="full" target="_blank" rel="noopener" hidden>Full size</a></span></div>
         <div class="sheet-big" data-src="data/${issue.date}/p${n + 1}.bin"><span class="loading"></span></div></section>`).join("")
       + `<div class="r-end">${older ? `<a href="#/${older.date}">← ${esc(fmt(older.date, { weekday: "long", month: "short", day: "numeric" }))}</a>` : "<span></span>"}
-         ${newer ? `<a href="#/${newer.date}">${esc(fmt(newer.date, { weekday: "long", month: "short", day: "numeric" }))} →</a>` : ""}</div>`;
+         <button class="print-end" type="button">Print this paper</button>
+         ${newer ? `<a href="#/${newer.date}">${esc(fmt(newer.date, { weekday: "long", month: "short", day: "numeric" }))} →</a>` : "<span></span>"}</div>`;
+    $$("#rpages .print-link, #rpages .print-end").forEach(b => b.addEventListener("click", () => choosePrinter(issue)));
+    preparePrint(issue);
     $$("#rpages .sheet-big").forEach(el => fill(el, el.dataset.src).then(img => { const a = el.parentElement.querySelector(".full"); if (img && a) { a.href = img.src; a.hidden = false; } }));
     $("#reader").scrollTop = 0;
     spy?.disconnect();
@@ -589,28 +598,39 @@ addEventListener("keydown", e => {
 addEventListener("hashchange", () => { if (KEY) route(); });
 
 // ---------- printing ----------
-let printing = null;
+// Safari only opens the print dialog straight from a tap, so the pages are decrypted and
+// laid out ahead of time, and "Another printer" calls print() with nothing to wait for.
+let printing = null, ready = null;
+function preparePrint(issue) {
+  if (ready?.issue === issue) return ready.done;
+  const total = issue.pages || 4;
+  const done = Promise.all(Array.from({ length: total }, (_, n) => image(`data/${issue.date}/p${n + 1}.bin`))).then(async srcs => {
+    if (ready?.issue !== issue) return false;
+    $("#printout").innerHTML = srcs.map(src => `<img src="${src}" alt="">`).join("");
+    await Promise.all($$("#printout img").map(img => img.decode().catch(() => {})));
+    return ready?.issue === issue;
+  });
+  ready = { issue, done };
+  return done;
+}
 function choosePrinter(issue) {
   printing = issue;
   $("#print-which").textContent = `${fmt(issue.date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · ${count(issue.pages || 4, "page", "pages").toLowerCase()}`;
   $("#chooser-note").textContent = "";
+  const other = $("#print-other");
+  other.disabled = true; other.querySelector("span").textContent = "Getting the pages ready…";
   $("#chooser").showModal();
+  preparePrint(issue).then(ok => {
+    if (printing !== issue) return;
+    other.disabled = !ok;
+    other.querySelector("span").textContent = ok ? "Opens this device's print dialog, so you can pick any printer it can reach."
+                                                 : "Couldn't load the pages. Check your connection and try again.";
+  }).catch(() => { other.querySelector("span").textContent = "Couldn't load the pages. Check your connection and try again."; });
 }
 $("#r-print").addEventListener("click", () => current && choosePrinter(current));
 // The home printer comes later: until it's set up, this choice only says so.
 $("#print-home").addEventListener("click", () => $("#chooser-note").textContent = "The home printer isn't set up yet. Use another printer for now.");
-$("#print-other").addEventListener("click", async () => {
-  const issue = printing, total = issue.pages || 4;
-  $("#chooser-note").textContent = "Getting the pages ready…";
-  try {
-    const srcs = await Promise.all(Array.from({ length: total }, (_, n) => image(`data/${issue.date}/p${n + 1}.bin`)));
-    $("#printout").innerHTML = srcs.map(src => `<img src="${src}" alt="">`).join("");
-    await Promise.all($$("#printout img").map(img => img.decode().catch(() => {})));
-    $("#chooser").close();
-    setTimeout(() => print(), 50);
-  } catch { $("#chooser-note").textContent = "Couldn't load the pages. Check your connection and try again."; }
-});
-addEventListener("afterprint", () => $("#printout").innerHTML = "");
+$("#print-other").addEventListener("click", () => { $("#chooser").close(); print(); });
 
 // ---------- start ----------
 (async () => {
