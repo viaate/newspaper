@@ -233,9 +233,13 @@ img { display: block; }
 .review .v { font-family: var(--display); font-weight: 900; font-size: 15pt; line-height: 1.05; margin-bottom: 2pt; }
 
 /* ---------- A3 the PSAT question ---------- */
-.puzzle-row { display: grid; grid-template-columns: 2.75in 1fr; column-gap: 16pt; align-items: start; }
-.puzzle-row .jumble .boxes span { width: 0.17in; height: 0.17in; }
-.puzzle-row .jumble { grid-template-columns: 1fr 1fr; row-gap: 8pt; }
+.puzzle-row { display: grid; grid-template-columns: 2.7in minmax(0, 1fr); align-items: start; }
+.puzzle-row > div { min-width: 0; }
+.puzzle-row .jumble { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 8pt; row-gap: 8pt; padding-right: 14pt; }
+.puzzle-row .jumble .word { min-width: 0; }
+/* boxes shrink to fit a long word rather than running into the question */
+.puzzle-row .jumble .boxes span { flex: 0 1 0.17in; height: auto; aspect-ratio: 1; min-width: 0; }
+.puzzle-row .sat { border-left: 0.6pt solid var(--rule); padding-left: 14pt; }
 .sat .q { font-size: 8.8pt; line-height: 1.32; margin: 0 0 4pt; }
 .sat ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2pt 12pt; font-size: 8.6pt; line-height: 1.3; }
 .sat ol li b { font-family: var(--sans); font-size: 7pt; font-weight: 700; margin-right: 4pt; }
