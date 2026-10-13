@@ -606,6 +606,9 @@ addEventListener("hashchange", () => { if (KEY) route(); });
 // iPhones get the share sheet (it has Print, and works where print() doesn't, such as
 // home-screen apps and in-app browsers); other devices get the print dialog.
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+// Opened from a home-screen icon: there's no print dialog, and a PDF link opens full screen
+// with no way back, so the share sheet (Print, Save to Files) is the only way out.
+const HOME_APP = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
 let printing = null, ready = null;
 
 async function jpeg(src) {
@@ -661,7 +664,8 @@ function choosePrinter(issue) {
     if (printing !== issue) return;
     if (!ok) return say("Couldn't load the pages. Check your connection and try again.");
     other.disabled = false;
-    say(IOS ? "Opens the share sheet. Tap Print, then pick any printer." : "Opens this device's print dialog, so you can pick any printer it can reach.");
+    say(IOS ? "Opens the share sheet. Tap Print, then pick any printer, or Save to Files to keep a copy." : "Opens this device's print dialog, so you can pick any printer it can reach.");
+    $(".pdf-line").hidden = IOS && HOME_APP;
     pdf.href = ready.url; pdf.download = ready.name; pdf.removeAttribute("aria-disabled");
   }).catch(() => say("Couldn't load the pages. Check your connection and try again."));
 }
@@ -672,7 +676,7 @@ $("#print-other").addEventListener("click", () => {
   if (IOS && ready?.file && navigator.canShare?.({ files: [ready.file] })) {
     navigator.share({ files: [ready.file], title: ready.name })
       .then(() => $("#chooser").close())
-      .catch(e => { if (e.name !== "AbortError") $("#chooser-note").textContent = "Sharing didn't open here. Use “save it as a PDF” instead."; });
+      .catch(e => { if (e.name !== "AbortError") { $(".pdf-line").hidden = false; $("#chooser-note").textContent = "Sharing didn't open here. Use “save it as a PDF” instead."; } });
     return;
   }
   $("#chooser").close(); print();
