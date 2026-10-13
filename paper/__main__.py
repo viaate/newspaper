@@ -16,6 +16,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from . import comic, config, grades, images, printer, puzzles, render, spend, writer
+from . import week as weekly
 from .dates import fmt
 from .sources import ai_usage, calendars, codex, gmail, lunch, news, overnight, schoology, social, sports, weather
 
@@ -186,12 +187,18 @@ def build(cfg, sample=False, today=None, png=False):
     threshold = cfg["grades"]["threshold"]
     courses = grades.annotate(courses, threshold, cfg["data_dir"], today, save=not sample)
     gpa = grades.gpa(courses, cfg)
+    notes_from_teachers = grades.fresh_comments(courses, cfg["data_dir"], today, save=not sample)
+    if not sample:
+        weekly.log_overnight(cfg, today, slept)
+    # Sundays look back over the week.
+    week_review = weekly.review(cfg, today, courses, gumroad) if today.weekday() == 6 and not sample else None
     style = comic.style_for(today, cfg["comic"]["styles"])
     print_time = _print_time(cfg, today)
     ctx = {
         "today": today, "threshold": threshold, "courses": courses, "week": week,
         "emails": mail, "packages": packages, "calendar": events, "weather": forecast, "news": stories,
         "lunch": menu, "chiefs": chiefs, "overnight": slept, "gumroad": gumroad, "socials": socials,
+        "teacher_notes": notes_from_teachers, "week_review": week_review,
     }
 
     edition = writer.write(cfg, ctx, style, print_time)
@@ -203,8 +210,14 @@ def build(cfg, sample=False, today=None, png=False):
     crossword = puzzles.crossword([(c["answer"], c["clue"]) for c in edition["crossword"]], seed)
     scrambles = puzzles.jumble(edition["jumble"], seed)
     answers = puzzles.yesterdays_answers(cfg["data_dir"], today)
+    sat = None
+    if edition.get("sat_question") and edition.get("sat_answer"):
+        letter = edition["sat_answer"].strip()[:1].upper()
+        choices = edition.get("sat_choices") or []
+        pick = "ABCD".find(letter)
+        sat = {"answer": letter, "choice": choices[pick] if 0 <= pick < len(choices) else "", "why": edition.get("sat_why", "")}
     if not sample:
-        puzzles.save_answers(cfg["data_dir"], today, crossword, scrambles)
+        puzzles.save_answers(cfg["data_dir"], today, crossword, scrambles, sat)
 
     strip = None
     if edition.get("comic"):
@@ -253,6 +266,8 @@ def build(cfg, sample=False, today=None, png=False):
         "missing": [{"course": c["course"], **m} for c in courses for m in c["missing"]],
         "limits": limits,
         "codex": codex_limits,
+        "teacher_notes": notes_from_teachers,
+        "week_review": week_review,
         "overnight": [{**o, "note": note} for o, note in zip(slept, edition.get("overnight", []) + [""] * len(slept))],
         "spend": spend.summary(cfg, today),
     }, out_pdf, png=png)

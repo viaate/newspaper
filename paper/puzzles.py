@@ -155,13 +155,14 @@ def jumble(words, seed=0):
 
 # ------------------------------------------------------------------ answers
 
-def save_answers(data_dir, day, puzzle, scrambles):
+def save_answers(data_dir, day, puzzle, scrambles, sat=None):
     folder = data_dir / "puzzles"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / f"{day}.json").write_text(json.dumps({
         "across": [f"{a['number']} {a['answer']}" for a in (puzzle or {}).get("across", [])],
         "down": [f"{d['number']} {d['answer']}" for d in (puzzle or {}).get("down", [])],
         "jumble": [j["answer"] for j in scrambles],
+        "sat": sat,
     }), encoding="utf-8")
 
 

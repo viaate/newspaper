@@ -5,9 +5,9 @@ bed, so the day starts without a phone. Inspired by Karen X. Cheng's newspaper b
 
 | Page | What's on it |
 |---|---|
-| **A1 · Front page** | A headline about your day; today's agenda (calendar events, what's due, anything an email says is today); Grade Watch (classes under 92.5, with what would fix them and the change since yesterday); today's school lunch (Ward Parkway); weather with what to wear; Snow Day Watch; packages arriving today; emails that need a look; last night's Chiefs score (only after a game); countdowns |
+| **A1 · Front page** | A headline about your day; today's agenda (calendar events, what's due, anything an email says is today); Grade Watch (classes under 92.5, with what would fix them and the change since yesterday); new teacher comments on graded work; on Sundays, the week in review (grades, TikTok, money, what Claude built); today's school lunch (Ward Parkway); weather with what to wear; Snow Day Watch; packages arriving today; emails that need a look; last night's Chiefs score (only after a game); countdowns |
 | **A2 · The Briefing** | Five tech stories with newsprint photos, Kansas City news, and the world in brief |
-| **A3 · Puzzles & Funnies** | A black-and-white daily comic starring your cartoon avatar, drawn in a different adult cartoon's style each day; a crossword built from your week; a "Dear Olivia" advice column; a jumble; classifieds; yesterday's answers |
+| **A3 · Puzzles & Funnies** | A black-and-white daily comic starring your cartoon avatar, drawn in a different adult cartoon's style each day; a crossword built from your week; a "Dear Olivia" advice column; a jumble; a PSAT/SAT question of the day; classifieds; yesterday's answers, the PSAT one with why |
 | **A4 · The Ledger** | Report card for every class with an estimated GPA (unweighted and weighted); tests and big grades marked this week; everything missing or zeroed, including what Schoology's Missing tab skips; the week ahead with tests in bold; what Claude worked on overnight; how much of each Claude account's limits is used; what the Claude and Gemini keys have spent and what's left; money in (Gumroad sales from email, and an estimate of TikTok pay); TikTok and Instagram followers and views |
 
 It prints at 6:50 on weekdays and 7:30 on weekends. Claude Haiku 5.5 writes the words. Grades,
@@ -165,6 +165,7 @@ paper/
   grades.py             under-92.5 flags, day-over-day changes and the GPA estimate
   sources/social.py     public TikTok and Instagram numbers, and the TikTok pay estimate
   spend.py              the ledger of what the Claude and Gemini keys spend
+  week.py               Sunday's week in review, from what each morning saved
   archive.py            the passcode-locked archive site (templates/archive.html)
   writer.py             Claude Haiku 5.5 writes all three pages (structured output)
   comic.py              the daily strip and the avatar, via Gemini

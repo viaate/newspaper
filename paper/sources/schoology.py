@@ -121,7 +121,7 @@ def fetch(cfg, today=None):
             # A linked class's list can leave graded work out; fetch that one directly.
             return assignments.get(aid) or _assignment(api, sid, aid)
 
-        missing, recent = [], []
+        missing, recent, comments = [], [], []
         for aid, g in scored.items():
             exception = int(g.get("exception") or 0)
             score = _number(g.get("grade"))
@@ -139,6 +139,12 @@ def fetch(cfg, today=None):
                 if kind == "Zero" and (today - (due or graded)).days > cfg["grades"].get("zero_days", 30):
                     continue
                 missing.append({"title": a.get("title") or "Untitled assignment", "kind": kind, "due": due})
+
+            # What teachers wrote on recently graded work.
+            note = re.sub(r"\s+", " ", g.get("comment") or "").strip()
+            if note and graded >= today - timedelta(days=14):
+                comments.append({"id": f"{sid}:{aid}", "title": lookup(aid).get("title") or "Untitled assignment",
+                                 "comment": note, "graded": graded, "score": score, "max": max_points})
 
             # Recently graded tests, exams, essays and projects, good or bad.
             category = categories.get(g.get("category_id"), {})
@@ -174,6 +180,7 @@ def fetch(cfg, today=None):
             "missing": sorted(missing, key=lambda m: m["due"] or date.min),
             "upcoming": sorted(upcoming, key=lambda u: u["due"]),
             "recent": sorted(recent, key=lambda r: r["graded"], reverse=True),
+            "comments": comments,
         })
 
     week.sort(key=lambda w: (w["due"], w["course"]))

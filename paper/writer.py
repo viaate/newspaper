@@ -2,8 +2,6 @@
 
 import json
 import re
-from typing import Literal
-
 import anthropic
 from pydantic import BaseModel, ValidationError
 
@@ -14,8 +12,10 @@ from .dates import fmt
 MODEL = "claude-haiku-5-5"
 
 
+# Kept small on purpose: the structured-output grammar has a size limit, so the models
+# avoid enums and repeat one story type rather than declaring near-duplicates.
 class Notice(BaseModel):
-    tag: Literal["ACTION", "FYI"]
+    tag: str
     who: str
     line: str
 
@@ -40,12 +40,6 @@ class Story(BaseModel):
     body: str
 
 
-class Brief(BaseModel):
-    url: str
-    headline: str
-    body: str
-
-
 class Panel(BaseModel):
     scene: str
     balloon: str
@@ -65,7 +59,7 @@ class Letter(BaseModel):
 
 
 class Ad(BaseModel):
-    section: Literal["WANTED", "FOR SALE", "NOTICES", "LOST & FOUND"]
+    section: str
     headline: str
     body: str
 
@@ -85,14 +79,16 @@ class Edition(BaseModel):
     lunch_line: str
     weather_line: str
     tech: list[Story]
-    local: list[Brief]
-    world: list[Brief]
+    local: list[Story]
+    world: list[Story]
     comic: Comic
     dear: Letter
     classifieds: list[Ad]
     crossword: list[Clue]
     jumble: list[str]
     overnight: list[str]
+    sat: list[str]
+    week_line: str
 
 
 SYSTEM = """You are the editor of {name}, a four-page morning newspaper printed for {reader}, \
@@ -109,7 +105,8 @@ PAGE 1, about {reader}'s day:
 - deck: one sentence, at most 22 words, the next most important thing.
 - lead: two short paragraphs, 110-150 words in total, speaking to {reader} by name: which \
 classes are under {threshold} and exactly what would fix them, any test or big grade marked \
-since yesterday (score exactly as given), what's due soon, and any email that needs action.
+since yesterday (score exactly as given), any new teacher comment that asks for something \
+(like a make-up), what's due soon, and any email that needs action.
 - today: 3-7 items happening or due today only, in time order: calendar events with their \
 times, assignments due today, and anything an email says is today. time is like "8:00 A.M.", \
 "4:30 P.M.", "11:59 P.M." or "Today" when no time is known. what is at most 9 words. tag is \
@@ -139,8 +136,8 @@ sexual crimes or graphic violence, and write about hard news plainly, without go
 of news. The first is the lead: 90-120 words. The rest: 45-65 words. Explain what happened \
 and why it matters. If an item has no summary, keep the body to what its headline says. url \
 and source copied exactly from the chosen item.
-- local: 3 Kansas City-area stories from local_news. headline at most 10 words, body 30-45 words.
-- world: 4 stories from world_news. headline at most 10 words, body 20-30 words.
+- local: 3 Kansas City-area stories from local_news, source copied from the item. headline at most 10 words, body 30-45 words.
+- world: 4 stories from world_news, source copied from the item. headline at most 10 words, body 20-30 words.
 
 PAGE 3, puzzles and funnies (playful, kind, never mean, school-appropriate):
 - comic: today's strip is drawn in the style of {comic_style}. title is a pun on "{comic_style}" \
@@ -159,11 +156,19 @@ headline at most 7 words, body at most 30 words.
 {reader}'s week (classes, topics, assignments, weather, tech news). Crossword-style clues, at \
 most 9 words; never put the answer in its clue.
 - jumble: 4 words, 5 or 6 letters each, from {reader}'s day.
+- sat: the PSAT/SAT question of the day, as exactly 8 strings in this order: section ("Math" on \
+odd days of the month, "Reading and Writing" on even days); the question, original, digital-SAT \
+style at PSAT difficulty, at most 70 words (a short passage plus its question for Reading and \
+Writing); choices A, B, C and D as four separate strings without letters; the letter of the one \
+correct choice; and at most 25 words on why, which prints tomorrow. Solve it yourself and make \
+sure exactly one choice is right and the others are clearly wrong.
 
 PAGE 4, the ledger (grades, limits and money print from the data; you write only this):
 - overnight: one line per item in overnight_sessions, in the same order, each at most 28 \
 words: what Claude worked on and where it ended up (finished, still going, or waiting on \
-{reader}), naming any commits. Empty list if there are none."""
+{reader}), naming any commits. Empty list if there are none.
+- week_line: only when week_in_review is in the facts (Sundays): two sentences, at most 45 words, \
+on how {reader}'s week went from those numbers. Otherwise an empty string."""
 
 
 def _facts(ctx, style):
@@ -221,13 +226,16 @@ def _facts(ctx, style):
             for g in ctx.get("gumroad", []) if (ctx["today"] - g["when"].date()).days < 7
         ],
         "social_media": {k: v for k, v in (ctx.get("socials") or {}).items() if k in ("tiktok", "instagram", "followers")},
+        "teacher_comments_new": [{"class": n["course"], "assignment": n["title"], "score": n["score"], "out_of": n["max"],
+                                  "comment": n["comment"][:400]} for n in ctx.get("teacher_notes", [])],
+        **({"week_in_review": ctx["week_review"]} if ctx.get("week_review") else {}),
         "overnight_sessions": [{
             "project": o["project"], "where": o["where"], "account": o["account"],
             "from": fmt(o["start"], "%a %I:%M %p"), "to": fmt(o["end"], "%a %I:%M %p"),
             "requests": o["requests"], "asked": o["first_ask"], "claude_last_said": o["last_reply"],
             "commits": o["commits"],
         } for o in ctx.get("overnight", [])],
-    }, indent=1)
+    }, indent=1, default=str)
 
 
 def client(cfg):
@@ -269,7 +277,10 @@ def write(cfg, ctx, style, print_time):
     if response.stop_reason != "end_turn" or response.parsed_output is None:
         print(f"writer: no usable edition (stop_reason={response.stop_reason}), using plain layout")
         return None
-    return response.parsed_output.model_dump()
+    out = response.parsed_output.model_dump()
+    sat = out.pop("sat", []) + [""] * 8
+    out.update(sat_section=sat[0], sat_question=sat[1], sat_choices=[c for c in sat[2:6] if c], sat_answer=sat[6], sat_why=sat[7])
+    return out
 
 
 # ---------------------------------------------------------------- no-AI fallback
@@ -371,6 +382,8 @@ def fallback(cfg, ctx, style, sample_copy=None):
     if edition.get("comic") and not edition["comic"].get("title"):
         edition["comic"]["title"] = comic_art.fallback_title(style, reader)
     edition.setdefault("lunch_line", _lunch_line(ctx["lunch"]))
+    for k, v in (("sat_section", ""), ("sat_question", ""), ("sat_choices", []), ("sat_answer", ""), ("sat_why", ""), ("week_line", "")):
+        edition.setdefault(k, v)
     edition.setdefault("overnight", [_sentences(o["last_reply"] or o["first_ask"], 28) for o in ctx.get("overnight", [])])
     edition.setdefault(
         "weather_line",

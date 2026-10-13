@@ -224,6 +224,22 @@ img { display: block; }
 .ad p { font-size: 8.2pt; margin: 0; }
 .answers { font-size: 7pt; color: #333; margin-top: 8pt; border-top: 0.4pt solid var(--hair); padding-top: 3pt; }
 .answers b { font-family: var(--sans); font-size: 6pt; letter-spacing: 0.1em; }
+/* ---------- A1 Sunday: the week in review ---------- */
+.week-line { font-size: 9.6pt; line-height: 1.35; margin: 0 0 6pt; }
+.review { display: grid; grid-template-columns: 1fr 1fr; border-top: 0.6pt solid var(--ink); }
+.review > div { padding: 5pt 8pt 6pt 0; border-bottom: 0.4pt solid var(--hair); font-size: 8.4pt; line-height: 1.3; }
+.review > div:nth-child(even) { padding-left: 9pt; border-left: 0.4pt solid var(--hair); }
+.review .k { font-family: var(--sans); font-size: 5.8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #444; margin-bottom: 2pt; }
+.review .v { font-family: var(--display); font-weight: 900; font-size: 15pt; line-height: 1.05; margin-bottom: 2pt; }
+
+/* ---------- A3 the PSAT question ---------- */
+.puzzle-row { display: grid; grid-template-columns: 2.75in 1fr; column-gap: 16pt; align-items: start; }
+.puzzle-row .jumble .boxes span { width: 0.17in; height: 0.17in; }
+.puzzle-row .jumble { grid-template-columns: 1fr 1fr; row-gap: 8pt; }
+.sat .q { font-size: 8.8pt; line-height: 1.32; margin: 0 0 4pt; }
+.sat ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2pt 12pt; font-size: 8.6pt; line-height: 1.3; }
+.sat ol li b { font-family: var(--sans); font-size: 7pt; font-weight: 700; margin-right: 4pt; }
+
 /* ---------- A4 the ledger ---------- */
 .ledger { display: grid; grid-template-columns: minmax(0, 1fr) 2.5in; column-gap: 14pt; margin-top: 8pt; }
 .ledger > * { min-width: 0; }
@@ -247,6 +263,10 @@ img { display: block; }
 .testcard .pct small { font-size: 11pt; }
 .testcard .what { font-weight: 700; font-size: 9pt; line-height: 1.2; }
 .testcard .sub { font-family: var(--sans); font-size: 5.6pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #444; margin-top: 2pt; }
+/* teacher comments */
+.said { padding: 4pt 0 5pt; border-bottom: 0.4pt solid var(--hair); }
+.said .who { font-family: var(--sans); font-size: 5.8pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #444; }
+.said q { display: block; font-style: italic; font-size: 8.6pt; line-height: 1.3; margin-top: 1pt; quotes: "“" "”"; }
 /* missing checklist */
 .todo { display: grid; grid-template-columns: 9pt 1fr auto; column-gap: 7pt; align-items: center; padding: 5pt 0; border-bottom: 0.4pt solid var(--hair); }
 .todo .box { width: 9pt; height: 9pt; border: 0.9pt solid var(--ink); }
@@ -366,6 +386,33 @@ img { display: block; }
       </table>
       {% elif courses %}<p class="muted">Every class is at or above {{ threshold }}.</p>
       {% else %}<p class="muted">No grades this morning.</p>{% endif %}
+
+      {% if teacher_notes %}
+      <h3 class="section-head"><span>From Your Teachers</span><span class="aside">New comments on graded work</span></h3>
+      {% for n in teacher_notes[:3] %}
+      <div class="said"><span class="who">{{ n.course }} · {{ n.title }}{% if n.score is not none %} · {{ '%g'|format(n.score) }}/{{ '%g'|format(n.max) }}{% endif %}</span>
+        <q>{{ n.comment|truncate(160, killwords=False, end='…') }}</q></div>
+      {% endfor %}
+      {% endif %}
+
+      {% if week_review %}{% set w = week_review %}
+      <h3 class="section-head"><span>The Week in Review</span><span class="aside">{{ w['from']|fmt('%b %-d') }} – {{ w['to']|fmt('%b %-d') }}</span></h3>
+      {% if edition.week_line %}<p class="week-line">{{ edition.week_line }}</p>{% endif %}
+      <div class="review">
+        <div><div class="k">Grades</div>
+          {% if w.grades %}<div class="v">{{ '%.2f'|format(w.grades.gpa_now) }}</div>GPA, {{ '%+.2f'|format(w.grades.gpa_now - w.grades.gpa_then) }} this week.
+            {% for c, d in w.grades.changes %}{{ c|replace(' Accelerated', '')|replace(': Spiegel', '') }} {{ '%+g'|format(d|round(2)) }}{% if not loop.last %} · {% endif %}{% else %}No grade changed.{% endfor %}
+          {% else %}<span class="muted">Changes show after a full week of papers.</span>{% endif %}</div>
+        <div><div class="k">TikTok</div>
+          {% if w.tiktok %}<div class="v">{{ '%+d'|format(w.tiktok.followers) }}</div>followers, {{ '{:,}'.format(w.tiktok.views) }} views.{% if w.tiktok.best %} Best: “{{ w.tiktok.best }}” (+{{ '{:,}'.format(w.tiktok.best_views) }}).{% endif %}
+          {% else %}<span class="muted">Growth shows after a few days of papers.</span>{% endif %}</div>
+        <div><div class="k">Money in</div>
+          <div class="v">${{ '%.0f'|format(w.money.gumroad + (w.money.tiktok or 0)) }}</div>Gumroad ${{ '%.0f'|format(w.money.gumroad) }} ({{ w.money.sales }} sale{{ 's' if w.money.sales != 1 }}){% if w.money.tiktok is not none %} · TikTok est. ${{ '%.0f'|format(w.money.tiktok) }}{% endif %}</div>
+        <div><div class="k">Built with Claude</div>
+          {% if w.claude %}<div class="v">{{ w.claude.sessions }}</div>sessions, {{ w.claude.commits }} commit{{ 's' if w.claude.commits != 1 }}: {{ w.claude.projects|join(', ') }}
+          {% else %}<span class="muted">Nothing logged yet.</span>{% endif %}</div>
+      </div>
+      {% endif %}
 
       {% if lunch %}
       <h3 class="section-head"><span>Lunch</span><span class="aside">{{ campus }}</span></h3>
@@ -536,12 +583,26 @@ img { display: block; }
     </div>
   </div>
 
-  {% if scrambles %}
-  <h3 class="section-head"><span>Jumble</span><span class="aside">Unscramble these words from your day</span></h3>
-  <div class="jumble">
-    {% for j in scrambles %}
-    <div class="word"><div class="letters">{{ j.scrambled }}</div><div class="boxes">{% for _ in j.answer %}<span></span>{% endfor %}</div></div>
-    {% endfor %}
+  {% set has_sat = edition.sat_question and edition.sat_choices|length == 4 %}
+  {% if scrambles or has_sat %}
+  <div class="{{ 'puzzle-row' if has_sat and scrambles }}">
+    {% if scrambles %}
+    <div>
+      <h3 class="section-head"><span>Jumble</span><span class="aside">{{ 'Words from your day' if has_sat else 'Unscramble these words from your day' }}</span></h3>
+      <div class="jumble">
+        {% for j in scrambles %}
+        <div class="word"><div class="letters">{{ j.scrambled }}</div><div class="boxes">{% for _ in j.answer %}<span></span>{% endfor %}</div></div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% if has_sat %}
+    <div class="sat">
+      <h3 class="section-head"><span>PSAT Question</span><span class="aside">{{ edition.sat_section }} · Answer tomorrow</span></h3>
+      <p class="q">{{ edition.sat_question }}</p>
+      <ol>{% for c in edition.sat_choices %}<li><b>{{ 'ABCD'[loop.index0] }}</b>{{ c }}</li>{% endfor %}</ol>
+    </div>
+    {% endif %}
   </div>
   {% endif %}
 
@@ -556,7 +617,7 @@ img { display: block; }
 
   <div class="answers">
     {% if answers %}
-    <b>Yesterday's answers</b> · Across: {{ answers.across|join(', ') }} · Down: {{ answers.down|join(', ') }}{% if answers.jumble %} · Jumble: {{ answers.jumble|join(', ') }}{% endif %}
+    <b>Yesterday's answers</b> · Across: {{ answers.across|join(', ') }} · Down: {{ answers.down|join(', ') }}{% if answers.jumble %} · Jumble: {{ answers.jumble|join(', ') }}{% endif %}{% if answers.sat %} · PSAT: <b>{{ answers.sat.answer }}</b>{% if answers.sat.choice %} ({{ answers.sat.choice }}){% endif %}. {{ answers.sat.why }}{% endif %}
     {% else %}
     <b>Answers</b> · Today's solutions run in tomorrow's paper.
     {% endif %}
@@ -624,9 +685,9 @@ img { display: block; }
       <h3 class="section-head"><span>Coming Up</span><span class="aside">Next seven days · tests in bold</span></h3>
       {% if week %}
       <div class="days">
-        {% for d in week[:6] %}
+        {% for d in week[:5] %}
         <div class="day">{{ d.label }}</div>
-        <ul>{% for w in d['items'][:6] %}<li class="{{ 'test' if w.title is test_like }}"><span class="course">{{ w.course|replace(' Accelerated', '')|replace(': Spiegel', '')|replace(' from 1500', '') }}</span>{{ w.title }}</li>{% endfor %}</ul>
+        <ul>{% for w in d['items'][:5] %}<li class="{{ 'test' if w.title is test_like }}"><span class="course">{{ w.course|replace(' Accelerated', '')|replace(': Spiegel', '')|replace(' from 1500', '') }}</span>{{ w.title }}</li>{% endfor %}</ul>
         {% endfor %}
       </div>
       {% else %}<p class="muted">Nothing due in the next seven days.</p>{% endif %}
@@ -636,7 +697,7 @@ img { display: block; }
       <h3 class="section-head first"><span>While You Slept</span><span class="aside">Claude &amp; Codex</span></h3>
       {% if overnight %}
       <div class="timeline">
-        {% for o in overnight %}
+        {% for o in overnight[:4] %}
         <div class="slept"><span class="when">{{ clock(o.start) }}–{{ clock(o.end) }} · {{ o.where }} · {{ o.account }}</span>
           <span class="who">{{ o.project }}.</span> {{ o.note }}</div>
         {% endfor %}

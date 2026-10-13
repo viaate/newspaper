@@ -1,5 +1,6 @@
 """Flag grades under the threshold and track day-over-day changes."""
 
+import hashlib
 import json
 import re
 
@@ -63,3 +64,27 @@ def gpa(courses, cfg):
         "classes": len(graded),
         "bonus": bonus,
     }
+
+
+# Comments that say nothing about the work itself.
+ROUTINE = re.compile(r"^(completion( grade)?|in[- ]class feedback|name|(\w+ )?grid completed.*|completed?|checked)\W*$", re.IGNORECASE)
+
+
+def fresh_comments(courses, data_dir, today, save=True, limit=4):
+    """Teacher comments seen for the first time today, newest first. The first run only
+    looks back a week, so the paper doesn't open with a month of old notes."""
+    path = data_dir / "comments_seen.json"
+    first_run = not path.exists()
+    seen = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    new = []
+    for c in courses:
+        for n in c.get("comments", []):
+            key = f"{n['id']}:{hashlib.sha1(n['comment'].encode()).hexdigest()[:10]}"
+            first_seen = seen.setdefault(key, today.isoformat())
+            recent = (today - n["graded"]).days <= (7 if first_run else 14)
+            if first_seen == today.isoformat() and recent and not ROUTINE.match(n["comment"]):
+                new.append({"course": c["course"], **n})
+    if save:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(seen, indent=1), encoding="utf-8")
+    return sorted(new, key=lambda n: n["graded"], reverse=True)[:limit]
