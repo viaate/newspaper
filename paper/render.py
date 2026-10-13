@@ -13,13 +13,13 @@ from .dates import fmt
 
 TEMPLATES = Path(__file__).resolve().parent / "templates"
 
-# Fit each page to its sheet. An optional section (data-fit="optional", the Feature) never
-# makes a page smaller: it fills only the room the rest of the page leaves. Its text
-# (data-fit="trim") loses sentences from the end, keeping two; if that's still too long,
-# its photo (data-fit="photo") gets smaller, then goes, with the text fitted again each
-# time; then the section goes.
-# A page that's still too long (busy without it) shrinks a couple of percent at a time,
-# so it prints on exactly one sheet.
+# Fit each page to its sheet. A page with an optional section (data-fit="optional", the
+# Feature) is laid out first without it, at the section's size (data-zoom, 90% for the
+# Feature) or smaller if the rest is busy; the section then fills only the room left.
+# Its text (data-fit="trim") loses sentences from the end, keeping two; if that's still
+# too long, its photo (data-fit="photo") gets smaller, then goes, with the text fitted
+# again each time; then the section goes. A page that's still too long shrinks a couple
+# of percent at a time, so it prints on exactly one sheet.
 FIT_PAGES = """async () => {
   await document.fonts.ready;
   const zooms = [];
@@ -28,39 +28,42 @@ FIT_PAGES = """async () => {
     let z = 1;
     const height = () => inner.getBoundingClientRect().height;
     const over = () => height() > page.getBoundingClientRect().height + 0.5;
+    const setZ = v => { z = v; inner.style.setProperty('--z', z); };
+    const shrink = () => { while (over() && z > 0.8) setZ(Math.round((z - 0.02) * 100) / 100); };
     const optional = [...page.querySelectorAll('[data-fit="optional"]')];
-    optional.forEach(el => el.style.display = 'none');
-    const floor = Math.max(page.getBoundingClientRect().height, height()) + 0.5;  // the page without them
-    optional.forEach(el => el.style.display = '');
-    const longer = () => height() > floor;
-    for (const section of optional) {
-      const text = section.querySelector('[data-fit="trim"]');
-      const full = text ? text.textContent.trim() : '';
-      const parts = full.split(/(?<=[.!?]["\u201d\u2019)]?)\\s+(?=["\u201c]?[A-Z0-9])/);
-      const fit = () => {
-        if (!text) return;
-        let n = parts.length;
-        text.textContent = full;
-        while (longer() && n > 2) text.textContent = parts.slice(0, --n).join(' ');
-      };
-      fit();
-      const photo = section.querySelector('[data-fit="photo"]');
-      if (photo) {
-        const [w, h] = [photo.offsetWidth, photo.offsetHeight];
-        for (const scale of [0.85, 0.7]) {
-          if (!longer()) break;
-          photo.style.width = `${w * scale}px`;
-          photo.style.height = `${h * scale}px`;
-          fit();
+    if (optional.length) {
+      optional.forEach(el => el.style.display = 'none');
+      shrink();
+      setZ(Math.min(z, ...optional.map(el => parseFloat(el.dataset.zoom || '1'))));
+      const floor = Math.max(page.getBoundingClientRect().height, height()) + 0.5;  // the page without them
+      optional.forEach(el => el.style.display = '');
+      const longer = () => height() > floor;
+      for (const section of optional) {
+        const text = section.querySelector('[data-fit="trim"]');
+        const full = text ? text.textContent.trim() : '';
+        const parts = full.split(/(?<=[.!?]["\u201d\u2019)]?)\\s+(?=["\u201c]?[A-Z0-9])/);
+        const fit = () => {
+          if (!text) return;
+          let n = parts.length;
+          text.textContent = full;
+          while (longer() && n > 2) text.textContent = parts.slice(0, --n).join(' ');
+        };
+        fit();
+        const photo = section.querySelector('[data-fit="photo"]');
+        if (photo) {
+          const [w, h] = [photo.offsetWidth, photo.offsetHeight];
+          for (const scale of [0.85, 0.7]) {
+            if (!longer()) break;
+            photo.style.width = `${w * scale}px`;
+            photo.style.height = `${h * scale}px`;
+            fit();
+          }
+          if (longer()) { photo.remove(); fit(); }
         }
-        if (longer()) { photo.remove(); fit(); }
+        if (longer()) section.remove();
       }
-      if (longer()) section.remove();
     }
-    while (over() && z > 0.8) {
-      z = Math.round((z - 0.02) * 100) / 100;
-      inner.style.setProperty('--z', z);
-    }
+    shrink();
     zooms.push(over() ? -z : z);
   }
   return zooms;

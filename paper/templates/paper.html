@@ -419,7 +419,7 @@ img { display: block; }
       {% endif %}
 
       {% if edition.feature %}{% set f = edition.feature %}
-      <section class="feature" data-fit="optional">
+      <section class="feature" data-fit="optional" data-zoom="0.9">
         <h3 class="section-head"><span>The Feature</span><span class="aside">Picked for you{% if lunch and lunch.no_school %} · no school today{% endif %}</span></h3>
         {% if feature_photo %}<img class="photo" src="{{ feature_photo }}" alt="" data-fit="photo">{% endif %}
         <h4>{{ f.headline }}</h4>
