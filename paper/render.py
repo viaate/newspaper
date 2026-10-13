@@ -13,11 +13,11 @@ from .dates import fmt
 
 TEMPLATES = Path(__file__).resolve().parent / "templates"
 
-# Fit each page to its sheet. An optional section (data-fit="optional") gives way first,
-# but only when it's what runs long, not the other column: its photo goes, then its
-# text (data-fit="trim") loses sentences from the end, keeping three, then the section
-# goes. Only then does a still-busy page shrink, a couple of percent at a time, so it
-# prints on exactly one sheet.
+# Fit each page to its sheet. When an optional section (data-fit="optional") is what runs
+# long, not the other column, its text (data-fit="trim") first loses sentences from the
+# end, keeping three; its photo stays. Then a still-busy page shrinks, a couple of percent
+# at a time, so it prints on exactly one sheet. Only if it can't fit even at the smallest
+# size does the optional section go.
 FIT_PAGES = """async () => {
   await document.fonts.ready;
   const zooms = [];
@@ -31,15 +31,22 @@ FIT_PAGES = """async () => {
     const floor = Math.max(page.getBoundingClientRect().height, height()) + 0.5;  // the page without them
     optional.forEach(el => el.style.display = '');
     const longer = () => height() > floor;
-    for (const el of page.querySelectorAll('[data-fit="photo"]')) if (longer()) el.remove();
     for (const el of page.querySelectorAll('[data-fit="trim"]')) {
       const parts = el.textContent.trim().split(/(?<=[.!?]["\u201d\u2019)]?)\\s+(?=["\u201c]?[A-Z0-9])/);
       while (longer() && parts.length > 3) { parts.pop(); el.textContent = parts.join(' '); }
     }
-    for (const el of optional) if (longer()) el.remove();
-    while (over() && z > 0.8) {
-      z = Math.round((z - 0.02) * 100) / 100;
+    const shrink = () => {
+      z = 1;
       inner.style.setProperty('--z', z);
+      while (over() && z > 0.8) {
+        z = Math.round((z - 0.02) * 100) / 100;
+        inner.style.setProperty('--z', z);
+      }
+    };
+    shrink();
+    if (over() && optional.length) {
+      optional.forEach(el => el.remove());
+      shrink();
     }
     zooms.push(over() ? -z : z);
   }
