@@ -152,8 +152,9 @@ story after those 5: the front page's Feature. It's the one item in interest_new
 (never one of the 5) most likely to fascinate {reader}, who is {interests}. Prefer surprising, \
 specific stories (a game launch or shutdown, a creator-business twist, a strange scientific \
 finding, an app or startup story) over routine product news. headline at most 10 words; body \
-140-180 words: what happened, why it's interesting, and what someone who makes videos, games \
-and apps might take from it, using only what the item says. Otherwise exactly 5.
+140-180 words: what happened and why it's interesting, using only what the item says, then end \
+by connecting it to {reader}'s own projects by name (what to take from it for Zenith, The Tally, \
+an app, or whatever it fits best). Otherwise exactly 5.
 - local: 3 Kansas City-area stories from local_news, source copied from the item. headline at most 10 words, body 30-45 words.
 - world: 4 stories from world_news, source copied from the item. headline at most 10 words, body 20-30 words.
 

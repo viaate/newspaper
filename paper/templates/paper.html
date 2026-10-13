@@ -423,7 +423,7 @@ img { display: block; }
         <h3 class="section-head"><span>The Feature</span><span class="aside">Picked for you{% if lunch and lunch.no_school %} · no school today{% endif %}</span></h3>
         <h4>{{ f.headline }}</h4>
         {% if feature_photo %}<img class="photo" src="{{ feature_photo }}" alt="">{% endif %}
-        <p data-fit="trim">{{ f.body }}</p>
+        <p>{{ f.body }}</p>
         {% if f.source %}<div class="source">{{ f.source }}</div>{% endif %}
       </section>
       {% elif lunch %}

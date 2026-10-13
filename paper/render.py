@@ -13,28 +13,16 @@ from .dates import fmt
 
 TEMPLATES = Path(__file__).resolve().parent / "templates"
 
-# Fit each page to its sheet. When an optional section (data-fit="optional") is what runs
-# long, not the other column, its text (data-fit="trim") first loses sentences from the
-# end, keeping three; its photo stays. Then a still-busy page shrinks, a couple of percent
-# at a time, so it prints on exactly one sheet. Only if it can't fit even at the smallest
-# size does the optional section go.
+# Fit each page to its sheet: a busy page shrinks a couple of percent at a time, so it
+# prints on exactly one sheet. An optional section (data-fit="optional", the Feature)
+# stays whole, photo and all, and goes only if the page can't fit even at the smallest size.
 FIT_PAGES = """async () => {
   await document.fonts.ready;
   const zooms = [];
   for (const page of document.querySelectorAll('.page')) {
     const inner = page.querySelector('.inner');
     let z = 1;
-    const height = () => inner.getBoundingClientRect().height;
-    const over = () => height() > page.getBoundingClientRect().height + 0.5;
-    const optional = [...page.querySelectorAll('[data-fit="optional"]')];
-    optional.forEach(el => el.style.display = 'none');
-    const floor = Math.max(page.getBoundingClientRect().height, height()) + 0.5;  // the page without them
-    optional.forEach(el => el.style.display = '');
-    const longer = () => height() > floor;
-    for (const el of page.querySelectorAll('[data-fit="trim"]')) {
-      const parts = el.textContent.trim().split(/(?<=[.!?]["\u201d\u2019)]?)\\s+(?=["\u201c]?[A-Z0-9])/);
-      while (longer() && parts.length > 3) { parts.pop(); el.textContent = parts.join(' '); }
-    }
+    const over = () => inner.getBoundingClientRect().height > page.getBoundingClientRect().height + 0.5;
     const shrink = () => {
       z = 1;
       inner.style.setProperty('--z', z);
@@ -44,6 +32,7 @@ FIT_PAGES = """async () => {
       }
     };
     shrink();
+    const optional = page.querySelectorAll('[data-fit="optional"]');
     if (over() && optional.length) {
       optional.forEach(el => el.remove());
       shrink();
