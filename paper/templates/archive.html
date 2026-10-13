@@ -233,6 +233,8 @@ footer p { margin: 0; color: var(--soft); font-family: var(--sans); font-size: 1
 .choice[aria-disabled="true"] { cursor: default; border-style: dashed; }
 .choice[aria-disabled="true"]:hover { border-color: var(--rule2); background: none; }
 .choice[aria-disabled="true"] b { color: var(--soft); }
+.pdf-line { font-family: var(--sans); font-size: 14px; color: var(--soft); margin: 2px 0 10px; }
+.pdf-line a[aria-disabled="true"] { pointer-events: none; opacity: .5; }
 .chooser-note { min-height: 20px; font-family: var(--sans); font-size: 13.5px; color: var(--red); margin: 0 0 6px; }
 .chooser-end { display: flex; justify-content: flex-end; }
 #printout { display: none; }
@@ -352,6 +354,7 @@ footer p { margin: 0; color: var(--soft); font-family: var(--sans); font-size: 1
     <p class="which" id="print-which"></p>
     <button type="button" class="choice" id="print-home" aria-disabled="true"><b>The Brother at home</b><span>Not set up yet. This starts working once the printer arrives.</span></button>
     <button type="button" class="choice" id="print-other"><b>Another printer</b><span>Opens this device's print dialog, so you can pick any printer it can reach.</span></button>
+    <p class="pdf-line">Or <a id="print-pdf" aria-disabled="true">save it as a PDF</a> to print from your files.</p>
     <p class="chooser-note" id="chooser-note" role="status"></p>
     <div class="chooser-end"><button class="textlink" value="cancel">Cancel</button></div>
   </form>
@@ -598,39 +601,82 @@ addEventListener("keydown", e => {
 addEventListener("hashchange", () => { if (KEY) route(); });
 
 // ---------- printing ----------
-// Safari only opens the print dialog straight from a tap, so the pages are decrypted and
-// laid out ahead of time, and "Another printer" calls print() with nothing to wait for.
+// Browsers only open print and share dialogs straight from a tap, so everything is made
+// ahead of time: the page images for print(), and a PDF of them for sharing or saving.
+// iPhones get the share sheet (it has Print, and works where print() doesn't, such as
+// home-screen apps and in-app browsers); other devices get the print dialog.
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 let printing = null, ready = null;
+
+async function jpeg(src) {
+  const img = new Image(); img.src = src; await img.decode();
+  const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0);
+  const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.9));
+  return { bytes: new Uint8Array(await blob.arrayBuffer()), w: c.width, h: c.height };
+}
+function pdfOf(pages) {  // one letter-size page per image
+  const enc = new TextEncoder(), parts = [], at = [];
+  let size = 0;
+  const put = x => { const b = typeof x === "string" ? enc.encode(x) : x; parts.push(b); size += b.length; };
+  const obj = (id, write) => { at[id] = size; put(`${id} 0 obj\n`); write(); put("\nendobj\n"); };
+  put("%PDF-1.4\n"); put(new Uint8Array([0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a]));
+  obj(1, () => put("<< /Type /Catalog /Pages 2 0 R >>"));
+  obj(2, () => put(`<< /Type /Pages /Kids [${pages.map((_, i) => `${3 + i * 3} 0 R`).join(" ")}] /Count ${pages.length} >>`));
+  pages.forEach((pg, i) => {
+    const id = 3 + i * 3, draw = `q 612 0 0 792 0 0 cm /P${i} Do Q`;
+    obj(id, () => put(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /XObject << /P${i} ${id + 2} 0 R >> >> /Contents ${id + 1} 0 R >>`));
+    obj(id + 1, () => put(`<< /Length ${draw.length} >>\nstream\n${draw}\nendstream`));
+    obj(id + 2, () => { put(`<< /Type /XObject /Subtype /Image /Width ${pg.w} /Height ${pg.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pg.bytes.length} >>\nstream\n`); put(pg.bytes); put("\nendstream"); });
+  });
+  const xref = size, count = 3 + pages.length * 3;
+  put(`xref\n0 ${count}\n0000000000 65535 f \n` + at.slice(1).map(o => `${String(o).padStart(10, "0")} 00000 n \n`).join(""));
+  put(`trailer\n<< /Size ${count} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(parts, { type: "application/pdf" });
+}
 function preparePrint(issue) {
   if (ready?.issue === issue) return ready.done;
-  const total = issue.pages || 4;
-  const done = Promise.all(Array.from({ length: total }, (_, n) => image(`data/${issue.date}/p${n + 1}.bin`))).then(async srcs => {
-    if (ready?.issue !== issue) return false;
+  const total = issue.pages || 4, mine = { issue };
+  mine.done = Promise.all(Array.from({ length: total }, (_, n) => image(`data/${issue.date}/p${n + 1}.bin`))).then(async srcs => {
+    if (ready !== mine) return false;
     $("#printout").innerHTML = srcs.map(src => `<img src="${src}" alt="">`).join("");
     await Promise.all($$("#printout img").map(img => img.decode().catch(() => {})));
-    return ready?.issue === issue;
+    const name = `the-olivia-times-${issue.date}.pdf`, blob = pdfOf(await Promise.all(srcs.map(jpeg)));
+    if (ready !== mine) return false;
+    mine.file = new File([blob], name, { type: "application/pdf" });
+    mine.url = URL.createObjectURL(blob); mine.name = name;
+    return true;
   });
-  ready = { issue, done };
-  return done;
+  ready = mine;
+  return mine.done;
 }
 function choosePrinter(issue) {
   printing = issue;
   $("#print-which").textContent = `${fmt(issue.date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · ${count(issue.pages || 4, "page", "pages").toLowerCase()}`;
   $("#chooser-note").textContent = "";
-  const other = $("#print-other");
-  other.disabled = true; other.querySelector("span").textContent = "Getting the pages ready…";
+  const other = $("#print-other"), pdf = $("#print-pdf"), say = t => other.querySelector("span").textContent = t;
+  other.disabled = true; pdf.setAttribute("aria-disabled", "true"); pdf.removeAttribute("href"); say("Getting the pages ready…");
   $("#chooser").showModal();
   preparePrint(issue).then(ok => {
     if (printing !== issue) return;
-    other.disabled = !ok;
-    other.querySelector("span").textContent = ok ? "Opens this device's print dialog, so you can pick any printer it can reach."
-                                                 : "Couldn't load the pages. Check your connection and try again.";
-  }).catch(() => { other.querySelector("span").textContent = "Couldn't load the pages. Check your connection and try again."; });
+    if (!ok) return say("Couldn't load the pages. Check your connection and try again.");
+    other.disabled = false;
+    say(IOS ? "Opens the share sheet. Tap Print, then pick any printer." : "Opens this device's print dialog, so you can pick any printer it can reach.");
+    pdf.href = ready.url; pdf.download = ready.name; pdf.removeAttribute("aria-disabled");
+  }).catch(() => say("Couldn't load the pages. Check your connection and try again."));
 }
 $("#r-print").addEventListener("click", () => current && choosePrinter(current));
 // The home printer comes later: until it's set up, this choice only says so.
 $("#print-home").addEventListener("click", () => $("#chooser-note").textContent = "The home printer isn't set up yet. Use another printer for now.");
-$("#print-other").addEventListener("click", () => { $("#chooser").close(); print(); });
+$("#print-other").addEventListener("click", () => {
+  if (IOS && ready?.file && navigator.canShare?.({ files: [ready.file] })) {
+    navigator.share({ files: [ready.file], title: ready.name })
+      .then(() => $("#chooser").close())
+      .catch(e => { if (e.name !== "AbortError") $("#chooser-note").textContent = "Sharing didn't open here. Use “save it as a PDF” instead."; });
+    return;
+  }
+  $("#chooser").close(); print();
+});
 
 // ---------- start ----------
 (async () => {
