@@ -15,7 +15,7 @@ import shutil
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import comic, config, grades, images, printer, puzzles, render, spend, writer
+from . import comic, config, grades, headlines, images, printer, puzzles, render, spend, writer
 from . import week as weekly
 from .dates import fmt
 from .sources import ai_usage, calendars, codex, gmail, lunch, news, overnight, schoology, social, sports, weather
@@ -199,11 +199,14 @@ def build(cfg, sample=False, today=None, png=False):
         "emails": mail, "packages": packages, "calendar": events, "weather": forecast, "news": stories,
         "lunch": menu, "chiefs": chiefs, "overnight": slept, "gumroad": gumroad, "socials": socials,
         "teacher_notes": notes_from_teachers, "week_review": week_review,
+        "past_titles": headlines.load(cfg, today),
     }
 
     edition = writer.write(cfg, ctx, style, print_time)
     if edition is None:
         edition = writer.fallback(cfg, ctx, style, sample_copy)
+    if not sample:
+        headlines.save(cfg, today, edition)
     # What was written, kept beside the PDF (handy for fixing a layout without rewriting it).
     (cfg["out_dir"] / f"{today}{'-sample' if sample else ''}.json").write_text(json.dumps(edition, indent=1, default=str), encoding="utf-8")
 
