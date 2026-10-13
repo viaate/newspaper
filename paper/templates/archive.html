@@ -210,6 +210,35 @@ footer p { margin: 0; color: var(--soft); font-family: var(--sans); font-size: 1
 .r-end a { font-family: var(--sans); font-size: 15px; font-weight: 700; text-decoration: none; padding: 12px 18px; border: 1px solid var(--rule2); border-radius: 6px; }
 .r-end a:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
+/* ============ printing ============ */
+.r-print { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 8px; background: none;
+           font-family: var(--sans); font-size: 14px; font-weight: 700; transition: border-color .2s, background-color .2s; }
+.r-print:hover { border-color: var(--rule2); background: var(--raise); }
+.r-print svg { width: 18px; height: 18px; }
+#chooser { width: min(440px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--rule2); border-radius: 10px; background: var(--bg); color: var(--ink); box-shadow: var(--shadow); }
+#chooser::backdrop { background: rgba(16, 15, 13, .45); }
+#chooser form { padding: 22px 22px 18px; }
+#chooser h2 { font-family: var(--display); font-weight: 900; font-size: 26px; line-height: 1.1; margin: 0 0 4px; }
+#chooser .which { font-family: var(--sans); font-size: 14px; color: var(--soft); margin: 0 0 18px; }
+.choice { display: block; width: 100%; text-align: left; padding: 14px 16px; margin-bottom: 10px; border: 1px solid var(--rule2); border-radius: 8px; background: none; transition: border-color .2s, background-color .2s; }
+.choice b { display: block; font-family: var(--sans); font-size: 15px; font-weight: 700; }
+.choice span { display: block; font-size: 14.5px; line-height: 1.4; color: var(--soft); margin-top: 2px; }
+.choice:hover { border-color: var(--ink); background: var(--raise); }
+.choice[aria-disabled="true"] { cursor: default; border-style: dashed; }
+.choice[aria-disabled="true"]:hover { border-color: var(--rule2); background: none; }
+.choice[aria-disabled="true"] b { color: var(--soft); }
+.chooser-note { min-height: 20px; font-family: var(--sans); font-size: 13.5px; color: var(--red); margin: 0 0 6px; }
+.chooser-end { display: flex; justify-content: flex-end; }
+#printout { display: none; }
+@media print {
+  @page { size: letter; margin: 0; }
+  html, body { background: #fff !important; }
+  body > *:not(#printout) { display: none !important; }
+  #printout { display: block !important; }
+  #printout img { display: block; width: 8.5in; height: 11in; object-fit: contain; break-after: page; }
+  #printout img:last-child { break-after: auto; }
+}
+
 @media (max-width: 980px) {
   .latest { grid-template-columns: 1fr; min-height: 0; }
   .stack { order: -1; width: min(72%, 400px); margin: 0 auto 8px; }
@@ -232,6 +261,7 @@ footer p { margin: 0; color: var(--soft); font-family: var(--sans); font-size: 1
   .read { width: 100%; justify-content: center; }
   .r-top .wrap { gap: 10px; }
   .r-title { order: 0; flex-basis: calc(100% - 150px); }
+  .r-print { order: 4; width: 100%; justify-content: center; }
   .r-jump { order: 3; width: 100%; justify-content: space-between; }
   .r-jump a { flex: 1; text-align: center; border-color: var(--rule); }
   .r-pages { padding: 14px 0 32px; gap: 26px; }
@@ -306,9 +336,21 @@ footer p { margin: 0; color: var(--soft); font-family: var(--sans); font-size: 1
     <button class="square" id="r-older" aria-label="The day before"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 17 6 12l5-5M18 17l-5-5 5-5"/></svg></button>
     <button class="square" id="r-newer" aria-label="The day after"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m13 17 5-5-5-5M6 17l5-5-5-5"/></svg></button>
     <nav class="r-jump" id="jump" aria-label="Pages"></nav>
+    <button class="r-print" id="r-print"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V3.5h10V9"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v6.5H7z"/></svg>Print</button>
   </div></div>
   <div class="r-pages" id="rpages"></div>
 </div>
+<dialog id="chooser" aria-labelledby="chooser-title">
+  <form method="dialog">
+    <h2 id="chooser-title">Print this paper</h2>
+    <p class="which" id="print-which"></p>
+    <button type="button" class="choice" id="print-home" aria-disabled="true"><b>The Brother at home</b><span>Not set up yet. This starts working once the printer arrives.</span></button>
+    <button type="button" class="choice" id="print-other"><b>Another printer</b><span>Opens this device's print dialog, so you can pick any printer it can reach.</span></button>
+    <p class="chooser-note" id="chooser-note" role="status"></p>
+    <div class="chooser-end"><button class="textlink" value="cancel">Cancel</button></div>
+  </form>
+</dialog>
+<div id="printout" aria-hidden="true"></div>
 <div class="tip" id="tip" hidden></div>
 <script>
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -405,6 +447,7 @@ function latest() {
       <div class="folio">${[i.volume && [`Volume ${i.volume}`, `No. ${i.number}`], i.price && ["Cost to print", i.price],
         i.high && ["High", `${i.high}°`], i.gpa && ["GPA", i.gpa]].filter(Boolean).map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}</div>
       <div class="actions"><a class="read" href="#/${i.date}">Read ${today ? "this morning's" : fmt(i.date, { weekday: "long" }) + "'s"} paper</a>
+        <button class="textlink" id="print-latest">Print it</button>
         ${ISSUES.length > 1 ? `<button class="textlink" id="random">Open a random day</button>` : ""}</div>
     </div>
     <div class="stack ${still ? "" : "arrive"}" id="stack" role="link" tabindex="0" aria-label="Open this issue">
@@ -422,6 +465,7 @@ function latest() {
     stack.addEventListener("pointerleave", () => { stack.style.setProperty("--ry", "0deg"); stack.style.setProperty("--rx", "0deg"); });
   }
   $("#random")?.addEventListener("click", () => location.hash = `#/${ISSUES[Math.floor(Math.random() * ISSUES.length)].date}`);
+  $("#print-latest").addEventListener("click", () => choosePrinter(i));
 }
 
 function note() {
@@ -543,6 +587,30 @@ addEventListener("keydown", e => {
   if (e.key === "ArrowLeft") step(1);
 });
 addEventListener("hashchange", () => { if (KEY) route(); });
+
+// ---------- printing ----------
+let printing = null;
+function choosePrinter(issue) {
+  printing = issue;
+  $("#print-which").textContent = `${fmt(issue.date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · ${count(issue.pages || 4, "page", "pages").toLowerCase()}`;
+  $("#chooser-note").textContent = "";
+  $("#chooser").showModal();
+}
+$("#r-print").addEventListener("click", () => current && choosePrinter(current));
+// The home printer comes later: until it's set up, this choice only says so.
+$("#print-home").addEventListener("click", () => $("#chooser-note").textContent = "The home printer isn't set up yet. Use another printer for now.");
+$("#print-other").addEventListener("click", async () => {
+  const issue = printing, total = issue.pages || 4;
+  $("#chooser-note").textContent = "Getting the pages ready…";
+  try {
+    const srcs = await Promise.all(Array.from({ length: total }, (_, n) => image(`data/${issue.date}/p${n + 1}.bin`)));
+    $("#printout").innerHTML = srcs.map(src => `<img src="${src}" alt="">`).join("");
+    await Promise.all($$("#printout img").map(img => img.decode().catch(() => {})));
+    $("#chooser").close();
+    setTimeout(() => print(), 50);
+  } catch { $("#chooser-note").textContent = "Couldn't load the pages. Check your connection and try again."; }
+});
+addEventListener("afterprint", () => $("#printout").innerHTML = "");
 
 // ---------- start ----------
 (async () => {
