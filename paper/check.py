@@ -7,8 +7,8 @@ from datetime import date
 
 import requests
 
-from . import comic, writer
-from .sources import calendars, gmail, lunch, schoology, sports, weather
+from . import comic, spend, writer
+from .sources import ai_usage, calendars, codex, gmail, lunch, overnight, schoology, social, sports, weather
 
 OK, BAD, SKIP = "✓", "✗", "–"
 
@@ -116,6 +116,34 @@ def run(cfg):
     avatar = comic.avatar_path(cfg)
     _line(OK if avatar.exists() else SKIP, "Avatar",
           "set" if avatar.exists() else "not yet: python -m paper avatar make data/photos/*")
+    for account in cfg.get("claude", {}).get("accounts") or [{"name": "Claude", "config_dir": ""}]:
+        def limits_check(account=account):
+            r = ai_usage.check_account(cfg, account)
+            if r.get("error"):
+                return (SKIP if "not signed in" in r["error"] else BAD), r["error"]
+            return f"week {r['week']['used']}% used, 5-hour {r['five_hour']['used']}%"
+        _try(account["name"][:14], limits_check)
+    def codex_check():
+        r = codex.limits(cfg)
+        if r.get("error"):
+            return (SKIP if "not signed in" in r["error"] else BAD), r["error"]
+        return ", ".join(f"{w['label'].lower()} {w['used']}% used" for w in r["windows"])
+    _try("Codex", codex_check)
+    _try("Overnight", lambda: f"{len(overnight.sessions(cfg))} Claude sessions since {cfg.get('overnight', {}).get('since', '21:00')}")
+    def social_check():
+        r = social.fetch(cfg)
+        parts = []
+        if r.get("tiktok"):
+            parts.append(f"TikTok {r['tiktok']['followers']:,} followers, {r['tiktok']['views']:,} views")
+        if r.get("instagram"):
+            parts.append(f"Instagram {r['instagram']['followers_text']} followers")
+        if r["errors"]:
+            return BAD, "; ".join(parts + [f"couldn't read {', '.join(r['errors'])}"])
+        return "; ".join(parts) or (SKIP, "no accounts under [social]")
+    _try("Socials", social_check)
+    _try("Spend", lambda: "; ".join(
+        f"{m['name']} ${m['month']:.2f} in 30 days" + (f", ${m['left']:.2f} left" if m["left"] is not None else ", balance not set")
+        for m in spend.summary(cfg)))
     _try("Chromium", chromium_check)
     _try("Printer", printer_check)
     _try("Schedule", timers_check)

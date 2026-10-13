@@ -1,6 +1,7 @@
 """Flag grades under the threshold and track day-over-day changes."""
 
 import json
+import re
 
 
 def annotate(courses, threshold, data_dir, today, save=True):
@@ -16,7 +17,7 @@ def annotate(courses, threshold, data_dir, today, save=True):
         if grade is None and not (c.get("missing") or c.get("upcoming")):
             continue  # advisory, clubs and other ungraded sections
         before = c.get("previous", previous.get(c["course"]))
-        c["change"] = round(grade - before, 1) if grade is not None and before is not None else None
+        c["change"] = round(grade - before, 2) if grade is not None and before is not None else None
         c["below"] = grade is not None and grade < threshold
         shown.append(c)
 
@@ -28,3 +29,37 @@ def annotate(courses, threshold, data_dir, today, save=True):
         data_dir.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({d: history[d] for d in keep}, indent=1), encoding="utf-8")
     return shown
+
+
+# Percent cutoffs on a 4.0 scale, with x.5 rounding up (92.5 is an A).
+SCALE = [
+    (92.5, "A", 4.0), (89.5, "A-", 3.7), (86.5, "B+", 3.3), (82.5, "B", 3.0), (79.5, "B-", 2.7),
+    (76.5, "C+", 2.3), (72.5, "C", 2.0), (69.5, "C-", 1.7), (66.5, "D+", 1.3), (62.5, "D", 1.0),
+    (59.5, "D-", 0.7), (0, "F", 0.0),
+]
+
+
+def letter(percent):
+    """(letter, points) for a percent grade."""
+    return next((l, p) for cut, l, p in SCALE if percent >= cut)
+
+
+def gpa(courses, cfg):
+    """Unweighted and weighted GPA from current grades. Weighted adds `bonus` percentage
+    points to classes whose names match `weighted` (Accelerated, AP...) before converting."""
+    g = cfg.get("gpa", {})
+    bonus = g.get("weighted_bonus", 5)
+    weighted = re.compile(g.get("weighted", r"\bAccelerated\b|\bAP\b|\bHonors\b"))
+    graded = [c for c in courses if c.get("grade") is not None]
+    for c in graded:
+        c["letter"], points = letter(c["grade"])
+        c["weighted"] = bool(weighted.search(c["course"]))
+        c["points"], c["weighted_points"] = points, letter(c["grade"] + (bonus if c["weighted"] else 0))[1]
+    if not graded:
+        return None
+    return {
+        "unweighted": sum(c["points"] for c in graded) / len(graded),
+        "weighted": sum(c["weighted_points"] for c in graded) / len(graded),
+        "classes": len(graded),
+        "bonus": bonus,
+    }

@@ -17,7 +17,9 @@ from pathlib import Path
 import requests
 from PIL import Image, ImageOps
 
-API = "https://generativelanguage.googleapis.com/v1beta"
+from . import spend
+
+API ="https://generativelanguage.googleapis.com/v1beta"
 
 # Strip titles for when the writer isn't available; it usually makes up its own.
 TITLES = {
@@ -75,7 +77,7 @@ def _model(cfg, key):
     return max(names, key=rank)
 
 
-def _generate(cfg, prompt, images=(), aspect="21:9"):
+def _generate(cfg, prompt, images=(), aspect="21:9", what="comic"):
     key = cfg["secrets"]["GEMINI_API_KEY"]
     parts = [{"text": prompt}]
     for img in images:
@@ -101,6 +103,7 @@ def _generate(cfg, prompt, images=(), aspect="21:9"):
         # Older image models don't take a size; they make 1K images.
         r = post({"aspectRatio": aspect})
     r.raise_for_status()
+    spend.record_gemini(cfg, what, r.json().get("usageMetadata", {}))
     for candidate in r.json().get("candidates", []):
         for part in candidate.get("content", {}).get("parts", []):
             data = (part.get("inlineData") or part.get("inline_data") or {}).get("data")
@@ -181,7 +184,7 @@ Show the same character twice side by side: facing forward, and three-quarters v
 head to toe, neutral standing pose, plain white background. Keep her hair, face shape
 and overall look recognizable ({cfg["comic"].get("look", "")}). No text."""
         path = folder / f"option-{letter}.png"
-        _ink(_generate(cfg, prompt, refs, aspect="4:3"), path)
+        _ink(_generate(cfg, prompt, refs, aspect="4:3", what="avatar"), path)
         made.append(path)
         print(f"drew avatar option {letter}: {path}")
     return made

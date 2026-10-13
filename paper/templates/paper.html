@@ -147,8 +147,8 @@ img { display: block; }
 .notice:last-child { border-bottom: none; }
 .notice .who { font-weight: 700; }
 .tag {
-  display: inline-block; font-size: 5.6pt; font-weight: 700; padding: 0.5pt 2.5pt; margin-right: 3pt;
-  border: 0.6pt solid var(--ink); vertical-align: 1pt;
+  display: inline-block; font-size: 5.6pt; font-weight: 700; line-height: 1; padding: 1.4pt 2.6pt 1.1pt; margin-right: 3pt;
+  border: 0.6pt solid var(--ink); vertical-align: 0.6pt;
 }
 .tag.action { background: var(--ink); color: #fff; }
 .package { padding: 3.5pt 0; border-bottom: 0.4pt solid var(--hair); font-size: 8.6pt; line-height: 1.28; }
@@ -224,6 +224,64 @@ img { display: block; }
 .ad p { font-size: 8.2pt; margin: 0; }
 .answers { font-size: 7pt; color: #333; margin-top: 8pt; border-top: 0.4pt solid var(--hair); padding-top: 3pt; }
 .answers b { font-family: var(--sans); font-size: 6pt; letter-spacing: 0.1em; }
+/* ---------- A4 the ledger ---------- */
+.ledger { display: grid; grid-template-columns: minmax(0, 1fr) 2.5in; column-gap: 14pt; margin-top: 8pt; }
+.ledger > * { min-width: 0; }
+.ledger .section-head { margin-top: 15pt; margin-bottom: 6pt; }
+.ledger .section-head.first { margin-top: 0; }
+.note { font-size: 7pt; font-style: italic; color: #444; margin-top: 3pt; }
+/* report card */
+.scoreboard { display: grid; grid-template-columns: auto auto 1fr; border-top: 2.2pt solid var(--ink); border-bottom: 0.6pt solid var(--ink); margin-bottom: 8pt; }
+.scoreboard > div { padding: 5pt 12pt 6pt 0; }
+.scoreboard > div + div { padding-left: 12pt; border-left: 0.4pt solid var(--hair); }
+.scoreboard .label { font-size: 5.8pt; font-weight: 700; margin-bottom: 4pt; }
+.scoreboard .big { font-family: var(--display); font-weight: 900; font-size: 28pt; line-height: 1; }
+.scoreboard .why { font-size: 7.2pt; font-style: italic; color: #444; align-self: end; }
+.report td { padding: 3.4pt 4pt 3.4pt 0; font-size: 9.2pt; }
+.report .letter { font-family: var(--display); font-weight: 900; font-size: 11pt; }
+/* tests */
+.tests { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6pt; }
+.testcard { display: grid; grid-template-columns: auto 1fr; column-gap: 8pt; align-items: center; border: 0.6pt solid var(--ink); padding: 6pt 8pt; }
+.testcard.low { border-left: 3pt solid var(--ink); background: var(--shade); }
+.testcard .pct { font-family: var(--display); font-weight: 900; font-size: 22pt; line-height: 1; }
+.testcard .pct small { font-size: 11pt; }
+.testcard .what { font-weight: 700; font-size: 9pt; line-height: 1.2; }
+.testcard .sub { font-family: var(--sans); font-size: 5.6pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #444; margin-top: 2pt; }
+/* missing checklist */
+.todo { display: grid; grid-template-columns: 9pt 1fr auto; column-gap: 7pt; align-items: center; padding: 5pt 0; border-bottom: 0.4pt solid var(--hair); }
+.todo .box { width: 9pt; height: 9pt; border: 0.9pt solid var(--ink); }
+.todo .course { display: block; font-family: var(--sans); font-size: 5.6pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #444; }
+.todo .title { font-weight: 700; font-size: 9.4pt; }
+.todo .due { font-size: 7.4pt; color: #444; text-align: right; }
+/* coming up */
+.days { display: grid; grid-template-columns: 0.9in minmax(0, 1fr); }
+.days .day { font-family: var(--sans); font-size: 6.2pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 5pt 0 4pt;
+             border-top: 1.2pt solid var(--ink); }
+.days ul { list-style: none; margin: 0; padding: 4pt 0 4pt; border-top: 0.4pt solid var(--hair); }
+.days li { font-size: 8.4pt; line-height: 1.3; padding: 1pt 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.days li .course { font-family: var(--sans); font-size: 5.8pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-right: 4pt; }
+.days li.test { font-weight: 700; }
+/* right column */
+.timeline { position: relative; padding-left: 11pt; }
+.timeline::before { content: ""; position: absolute; left: 2.6pt; top: 4pt; bottom: 4pt; border-left: 0.6pt solid var(--hair); }
+.slept { position: relative; padding: 3pt 0 6pt; font-size: 8.2pt; line-height: 1.28; }
+.slept::before { content: ""; position: absolute; left: -11pt; top: 5pt; width: 5.5pt; height: 5.5pt; border-radius: 50%; background: var(--ink); }
+.slept .who { font-weight: 700; }
+.slept .when { display: block; font-family: var(--sans); font-size: 5.6pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #444; margin-bottom: 1pt; }
+.meter { padding: 4pt 0 5pt; border-bottom: 0.4pt solid var(--hair); font-size: 8.4pt; }
+.meter:last-child { border-bottom: none; }
+.meter .who { font-weight: 700; }
+.meter .row { display: grid; grid-template-columns: 0.5in 1fr auto; column-gap: 5pt; align-items: center; margin-top: 3pt; font-size: 7.4pt; }
+.meter .row .k { font-family: var(--sans); font-size: 5.8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.bar { height: 5pt; border: 0.6pt solid var(--ink); }
+.bar i { display: block; height: 100%; background: var(--ink); }
+.figures { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-top: 0.6pt solid var(--ink); }
+.figures > div { padding: 5pt 6pt 5pt 0; border-bottom: 0.4pt solid var(--hair); }
+.figures > div:nth-child(even) { padding-left: 8pt; border-left: 0.4pt solid var(--hair); }
+.figures .k { font-family: var(--sans); font-size: 5.6pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #444; }
+.figures .v { font-family: var(--display); font-weight: 900; font-size: 16pt; line-height: 1.1; margin-top: 1pt; }
+.figures .s { font-size: 6.8pt; color: #444; }
+.figures .wide { grid-column: span 2; border-left: none !important; padding-left: 0 !important; }
 </style>
 </head>
 <body>
@@ -254,11 +312,11 @@ img { display: block; }
       <div class="ear">
         <div class="label">Printed for {{ paper.reader }}</div>
         <div class="big">{{ print_time }}</div>
-        <div>Three pages · Free</div>
+        <div>Four pages · {{ price.total|money if price else 'Free' }}</div>
       </div>
     </div>
     <div class="dateline">
-      <span>Vol. I · No. {{ issue }}</span><span>{{ date_line }}</span><span>{{ paper.city }}</span>
+      <span>Vol. {{ (volume or 1)|roman }} · No. {{ issue }}</span><span>{{ date_line }}</span><span>{{ paper.city }}</span>
     </div>
   </header>
 
@@ -278,19 +336,20 @@ img { display: block; }
       </table>
       {% endif %}
 
-      <h3 class="section-head"><span>Grade Watch</span><span class="aside">Flagged under {{ threshold }}</span></h3>
-      {% if courses %}
+      {% set flagged = courses|selectattr('below')|list %}
+      <h3 class="section-head"><span>Grade Watch</span><span class="aside">Flagged under {{ threshold }} · all classes on A4</span></h3>
+      {% if flagged %}
       <table class="grade-table">
         <thead><tr><th>Class</th><th class="num">Grade</th><th class="num">Since yest.</th><th>What it needs</th></tr></thead>
         <tbody>
-        {% for c in courses %}
-          <tr class="{{ 'below' if c.below }}">
+        {% for c in flagged %}
+          <tr class="below">
             <td>{{ c.course }}</td>
-            <td class="num">{{ '%.1f'|format(c.grade) if c.grade is not none else '—' }}</td>
+            <td class="num">{{ '%g'|format(c.grade) if c.grade is not none else '—' }}</td>
             <td class="num">
               {% if c.change is none %}<span class="muted">—</span>
-              {% elif c.change < 0 %}<span class="change down">−{{ '%.1f'|format(-c.change) }}</span>
-              {% elif c.change > 0 %}<span class="change">+{{ '%.1f'|format(c.change) }}</span>
+              {% elif c.change < 0 %}<span class="change down">−{{ '%g'|format(-c.change) }}</span>
+              {% elif c.change > 0 %}<span class="change">+{{ '%g'|format(c.change) }}</span>
               {% else %}<span class="muted">even</span>{% endif %}
             </td>
             <td class="needs">
@@ -302,17 +361,8 @@ img { display: block; }
         {% endfor %}
         </tbody>
       </table>
+      {% elif courses %}<p class="muted">Every class is at or above {{ threshold }}.</p>
       {% else %}<p class="muted">No grades this morning.</p>{% endif %}
-
-      <h3 class="section-head"><span>This Week</span><span class="aside">From Schoology</span></h3>
-      {% if week %}
-      <table class="week-table">
-        {% for d in week[:7] %}
-        <tr><td class="day-label">{{ d.label }}</td>
-            <td>{% for w in d['items'] %}<span class="course">{{ w.course }}:</span> {{ w.title }}{% if not loop.last %} · {% endif %}{% endfor %}</td></tr>
-        {% endfor %}
-      </table>
-      {% else %}<p class="muted">Nothing due in the next seven days.</p>{% endif %}
 
       {% if lunch %}
       <h3 class="section-head"><span>Lunch</span><span class="aside">{{ campus }}</span></h3>
@@ -509,6 +559,129 @@ img { display: block; }
     {% endif %}
   </div>
   {{ footer(3) }}
+</div></section>
+
+<!-- ============================== A4 ============================== -->
+{% macro clock(t) %}{{ t.strftime('%I:%M %p').lstrip('0') if t else '?' }}{% endmacro %}
+{% macro meter(label, w) %}
+<div class="row"><span class="k">{{ label }}</span><span class="bar"><i style="width: {{ [w.used, 100]|min }}%"></i></span>
+  <span>{{ w.used }}%{% if w.resets %} · resets {{ w.resets.strftime('%a') }} {{ clock(w.resets) }}{% endif %}</span></div>
+{% endmacro %}
+<section class="page"><div class="inner">
+  {{ running_head(4) }}
+  <div class="page-title"><span>The Ledger</span><small>Grades, limits, money and the overnight shift</small></div>
+
+  <div class="ledger grow">
+    <main>
+      <h3 class="section-head first"><span>Report Card</span><span class="aside">From Schoology this morning</span></h3>
+      {% if gpa %}
+      <div class="scoreboard">
+        <div><div class="label">GPA · Unweighted</div><div class="big">{{ '%.2f'|format(gpa.unweighted) }}</div></div>
+        <div><div class="label">Weighted · +{{ gpa.bonus }} Accel/AP</div><div class="big">{{ '%.2f'|format(gpa.weighted) }}</div></div>
+        <div class="why">Estimated from {{ gpa.classes }} classes' current grades on a 4.0 scale (92.5 and up is an A). Not your transcript.</div>
+      </div>
+      {% endif %}
+      {% set graded = courses|selectattr('grade', 'ne', none)|list %}
+      {% if graded %}
+      <table class="grade-table report">
+        <thead><tr><th>Class</th><th class="num">Grade</th><th class="num">Letter</th><th class="num">Since yest.</th></tr></thead>
+        <tbody>
+        {% for c in graded %}
+          <tr class="{{ 'below' if c.below }}">
+            <td>{{ c.course }}</td>
+            <td class="num">{{ '%g'|format(c.grade) }}</td>
+            <td class="num letter">{{ c.letter }}</td>
+            <td class="num">{% if c.change is none %}<span class="muted">—</span>{% elif c.change < 0 %}<span class="change down">−{{ '%g'|format(-c.change) }}</span>{% elif c.change > 0 %}+{{ '%g'|format(c.change) }}{% else %}<span class="muted">even</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="muted">No grades this morning.</p>{% endif %}
+
+      <h3 class="section-head"><span>Tests &amp; Big Grades</span><span class="aside">Graded in the last week</span></h3>
+      {% if tests %}
+      <div class="tests">
+        {% for t in tests[:6] %}
+        <div class="testcard {{ 'low' if t.percent < threshold }}">
+          <div class="pct">{{ '%.1f'|format(t.percent) }}<small>%</small></div>
+          <div><div class="what">{{ t.title }}</div>
+            <div class="sub">{{ t.course }} · {{ '%g'|format(t.score) }}/{{ '%g'|format(t.max) }}{% if t.weight %} · {{ '%g'|format(t.weight) }}% of grade{% endif %} · {{ t.graded.strftime('%a') }}</div></div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}<p class="muted">No tests or big grades marked this week.</p>{% endif %}
+
+      <h3 class="section-head"><span>To Fix</span><span class="aside">Missing, incomplete and recent zeros</span></h3>
+      {% for m in missing %}
+      <div class="todo"><span class="box"></span>
+        <div><span class="course">{{ m.course }}</span><span class="title">{{ m.title }}</span></div>
+        <div class="due"><span class="tag action">{{ m.kind }}</span>{% if m.due %}<br>was due {{ m.due|fmt('%a %b %-d') }}{% endif %}</div></div>
+      {% else %}<p class="muted">Nothing to fix. Nice.</p>{% endfor %}
+
+      <h3 class="section-head"><span>Coming Up</span><span class="aside">Next seven days · tests in bold</span></h3>
+      {% if week %}
+      <div class="days">
+        {% for d in week[:6] %}
+        <div class="day">{{ d.label }}</div>
+        <ul>{% for w in d['items'][:6] %}<li class="{{ 'test' if w.title is test_like }}"><span class="course">{{ w.course|replace(' Accelerated', '')|replace(': Spiegel', '')|replace(' from 1500', '') }}</span>{{ w.title }}</li>{% endfor %}</ul>
+        {% endfor %}
+      </div>
+      {% else %}<p class="muted">Nothing due in the next seven days.</p>{% endif %}
+    </main>
+
+    <aside class="rule-left">
+      <h3 class="section-head first"><span>While You Slept</span><span class="aside">Claude &amp; Codex</span></h3>
+      {% if overnight %}
+      <div class="timeline">
+        {% for o in overnight %}
+        <div class="slept"><span class="when">{{ clock(o.start) }}–{{ clock(o.end) }} · {{ o.where }} · {{ o.account }}</span>
+          <span class="who">{{ o.project }}.</span> {{ o.note }}</div>
+        {% endfor %}
+      </div>
+      {% else %}<p class="muted">Nothing ran overnight.</p>{% endif %}
+
+      <h3 class="section-head"><span>AI Limits</span><span class="aside">Used so far</span></h3>
+      {% for l in limits %}
+      <div class="meter"><span class="who">{{ l.name }}</span>
+        {% if l.error %}<div class="muted">{{ l.error }}</div>
+        {% else %}{% if l.week %}{{ meter('Week', l.week) }}{% endif %}{% if l.five_hour %}{{ meter('5 hours', l.five_hour) }}{% endif %}{% endif %}
+      </div>
+      {% endfor %}
+      {% if codex %}<div class="meter"><span class="who">Codex</span>
+        {% if codex.error %}<div class="muted">{{ codex.error }}</div>{% else %}{% for w in codex.windows %}{{ meter(w.label, w) }}{% endfor %}{% endif %}
+      </div>{% endif %}
+
+      <h3 class="section-head"><span>Money In</span><span class="aside">Last day · 30 days</span></h3>
+      <div class="figures">
+        <div><div class="k">TikTok, est.</div><div class="v">{% if money.tiktok is not none %}${{ '%.2f'|format(money.tiktok) }}{% else %}—{% endif %}</div>
+          <div class="s">{% if money.tiktok is not none %}last {{ money.tiktok_hours }} hours{% else %}starts tomorrow{% endif %}</div></div>
+        <div><div class="k">Gumroad</div><div class="v">${{ '%.0f'|format(money.gumroad_month) }}</div>
+          <div class="s">30 days · {{ money.gumroad_month_count }} sale{{ 's' if money.gumroad_month_count != 1 }}{% if money.gumroad_day %} · ${{ '%.0f'|format(money.gumroad_day) }} today{% endif %}</div></div>
+      </div>
+      <p class="note">{% if money.tiktok is not none %}TikTok: views gained × {{ (cfg_social.tiktok_qualified * 100)|round|int }}% qualified × ${{ cfg_social.tiktok_rpm }} per 1,000. {% endif %}Gumroad is sale prices, before fees.</p>
+
+      <h3 class="section-head"><span>Socials</span><span class="aside">Public numbers</span></h3>
+      {% set tt, ig = socials.tiktok, socials.instagram %}
+      {% if tt or ig %}
+      <div class="figures">
+        {% if tt %}<div><div class="k">TikTok</div><div class="v">{{ '{:,}'.format(tt.followers) }}</div>
+          <div class="s">{% if tt.followers_change is defined %}{{ '%+d'|format(tt.followers_change) }} · {% endif %}{{ '{:,}'.format(tt.views) }} views</div></div>{% endif %}
+        {% if ig %}<div><div class="k">Instagram</div><div class="v">{{ ig.followers_text }}</div>
+          <div class="s">{{ ig.posts }} posts{% if ig.followers_change is defined %} · {{ '%+d'|format(ig.followers_change) }}{% endif %}</div></div>{% endif %}
+        <div class="wide"><div class="k">Together</div><div class="v">{{ '{:,}'.format(socials.followers) }} followers</div>
+          <div class="s">{% if tt and tt.views_change is defined %}{{ '{:,}'.format(tt.views_change) }} new TikTok views in {{ tt.hours }} hours · {% endif %}{% if tt %}{{ '{:,}'.format(tt.likes) }} likes{% endif %}</div></div>
+      </div>
+      {% else %}<p class="muted">Couldn't reach TikTok or Instagram this morning.</p>{% endif %}
+
+      <h3 class="section-head"><span>API Spend</span><span class="aside">The paper's own calls</span></h3>
+      <div class="figures">
+        {% for m in spend %}<div><div class="k">{{ m.name }}</div><div class="v">{% if m.left is not none %}${{ '%.2f'|format(m.left) }}{% else %}${{ '%.2f'|format(m.month) }}{% endif %}</div>
+          <div class="s">{% if m.left is not none %}left · {% endif %}${{ '%.2f'|format(m.today) }} today</div></div>{% endfor %}
+      </div>
+      {% if price %}<p class="note">This issue cost {{ price.total|money }} to make: paper {{ price.paper|money }}, writing {{ price.writing|money }}, comic {{ price.comic|money }}.</p>{% endif %}
+    </aside>
+  </div>
+  {{ footer(4) }}
 </div></section>
 
 </body>

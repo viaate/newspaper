@@ -5,10 +5,10 @@ import re
 from typing import Literal
 
 import anthropic
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from . import comic as comic_art
-from . import puzzles
+from . import puzzles, spend
 from .dates import fmt
 
 MODEL = "claude-haiku-5-5"
@@ -92,9 +92,10 @@ class Edition(BaseModel):
     classifieds: list[Ad]
     crossword: list[Clue]
     jumble: list[str]
+    overnight: list[str]
 
 
-SYSTEM = """You are the editor of {name}, a three-page morning newspaper printed for {reader}, \
+SYSTEM = """You are the editor of {name}, a four-page morning newspaper printed for {reader}, \
 a high school student at {school} in {city}, at {print_time} every day. Write like a good \
 newspaper: specific, brisk, warm, funny where it fits, no hype, no emoji.
 
@@ -107,8 +108,8 @@ PAGE 1, about {reader}'s day:
 {threshold} usually leads.
 - deck: one sentence, at most 22 words, the next most important thing.
 - lead: two short paragraphs, 110-150 words in total, speaking to {reader} by name: which \
-classes are under {threshold} and exactly what would fix them, what's due soon, and any email \
-that needs action.
+classes are under {threshold} and exactly what would fix them, any test or big grade marked \
+since yesterday (score exactly as given), what's due soon, and any email that needs action.
 - today: 3-7 items happening or due today only, in time order: calendar events with their \
 times, assignments due today, and anything an email says is today. time is like "8:00 A.M.", \
 "4:30 P.M.", "11:59 P.M." or "Today" when no time is known. what is at most 9 words. tag is \
@@ -117,6 +118,10 @@ one or two words in capitals, like DUE, TEST, PRACTICE, IN PERSON, REPLY, EVENT.
 marketing, newsletters and receipts unless something has to be done. tag is ACTION if \
 {reader} must do something, else FYI. who is a short sender name, with the class in \
 parentheses for a teacher. line is at most 18 words.
+- Emails come oldest first, each with the time it was sent. A later email about the same \
+order, listing, offer, request or thread replaces the earlier ones: report only where things \
+stand now (an offer followed by "You made the sale" is a sale, not a pending offer), and leave \
+out anything already settled, cancelled or answered.
 - packages: deliveries expected today, from package_emails. Use each email's sent time and \
 today's date: an email from yesterday saying "arriving tomorrow" means today; skip anything \
 already delivered before today or due another day. store is the shop or carrier, item a plain \
@@ -153,7 +158,12 @@ headline at most 7 words, body at most 30 words.
 - crossword: 9 entries. Each answer is one word, 3-9 letters, letters only, drawn from \
 {reader}'s week (classes, topics, assignments, weather, tech news). Crossword-style clues, at \
 most 9 words; never put the answer in its clue.
-- jumble: 4 words, 5 or 6 letters each, from {reader}'s day."""
+- jumble: 4 words, 5 or 6 letters each, from {reader}'s day.
+
+PAGE 4, the ledger (grades, limits and money print from the data; you write only this):
+- overnight: one line per item in overnight_sessions, in the same order, each at most 28 \
+words: what Claude worked on and where it ended up (finished, still going, or waiting on \
+{reader}), naming any commits. Empty list if there are none."""
 
 
 def _facts(ctx, style):
@@ -176,11 +186,16 @@ def _facts(ctx, style):
                 {"title": m["title"], "status": m["kind"], "was_due": day(m["due"])} for m in c["missing"]
             ],
             "due_soon": [{"title": u["title"], "due": day(u["due"])} for u in c["upcoming"]],
+            "tests_and_big_grades_this_week": [{
+                "title": r["title"], "category": r["category"], "score": r["score"], "out_of": r["max"],
+                "graded": day(r["graded"]),
+            } for r in c.get("recent", [])],
         } for c in ctx["courses"]],
         "emails": [{
             "account": m["account"], "from": m["sender"], "subject": m["subject"],
+            "sent": fmt(m.get("when"), "%a %b %-d, %I:%M %p") or m["date"],
             "gmail_marked_important": m["important"], "body": m["body"][:800],
-        } for m in ctx["emails"]],
+        } for m in sorted(ctx["emails"], key=lambda m: m["when"].timestamp() if m.get("when") else float("inf"))],
         "weather": [{
             "day": day(w["date"]), "summary": w["summary"], "high_f": w["high"],
             "low_f": w["low"], "rain_chance_pct": w["rain_chance"], "snow_in": w["snow"],
@@ -201,6 +216,17 @@ def _facts(ctx, style):
         "tech_news": stories(ctx["news"]["tech"], 30),
         "local_news": stories(ctx["news"]["local"], 20),
         "world_news": stories(ctx["news"]["world"], 20),
+        "gumroad_sales_this_week": [
+            {"product": g["product"], "price_usd": g["amount"], "sold": fmt(g["when"], "%a %b %-d, %I:%M %p")}
+            for g in ctx.get("gumroad", []) if (ctx["today"] - g["when"].date()).days < 7
+        ],
+        "social_media": {k: v for k, v in (ctx.get("socials") or {}).items() if k in ("tiktok", "instagram", "followers")},
+        "overnight_sessions": [{
+            "project": o["project"], "where": o["where"], "account": o["account"],
+            "from": fmt(o["start"], "%a %I:%M %p"), "to": fmt(o["end"], "%a %I:%M %p"),
+            "requests": o["requests"], "asked": o["first_ask"], "claude_last_said": o["last_reply"],
+            "commits": o["commits"],
+        } for o in ctx.get("overnight", [])],
     }, indent=1)
 
 
@@ -224,17 +250,22 @@ def write(cfg, ctx, style, print_time):
         threshold=cfg["grades"]["threshold"], comic_style=style,
     )
     try:
-        response = client(cfg).messages.parse(
+        # Haiku 5.5 thinks before it writes, and the thinking counts against max_tokens:
+        # on a full morning's facts it can use 16k on thinking alone. Streaming lets the
+        # limit be generous without the request timing out.
+        with client(cfg).messages.stream(
             model=MODEL,
-            max_tokens=16000,
+            max_tokens=64000,
             system=system,
             messages=[{"role": "user", "content": _facts(ctx, style)}],
             output_format=Edition,
             output_config={"effort": "medium"},
-        )
-    except anthropic.APIError as e:
+        ) as stream:
+            response = stream.get_final_message()
+    except (anthropic.APIError, ValidationError) as e:  # ValidationError: cut off mid-JSON
         print(f"writer: Claude call failed, using plain layout: {e}")
         return None
+    spend.record_claude(cfg, "writer", response.usage)
     if response.stop_reason != "end_turn" or response.parsed_output is None:
         print(f"writer: no usable edition (stop_reason={response.stop_reason}), using plain layout")
         return None
@@ -340,6 +371,7 @@ def fallback(cfg, ctx, style, sample_copy=None):
     if edition.get("comic") and not edition["comic"].get("title"):
         edition["comic"]["title"] = comic_art.fallback_title(style, reader)
     edition.setdefault("lunch_line", _lunch_line(ctx["lunch"]))
+    edition.setdefault("overnight", [_sentences(o["last_reply"] or o["first_ask"], 28) for o in ctx.get("overnight", [])])
     edition.setdefault(
         "weather_line",
         f"{forecast['summary']}, high {forecast['high']}°, low {forecast['low']}°, "

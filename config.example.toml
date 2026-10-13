@@ -19,6 +19,16 @@ weekend = "07:30"
 
 [grades]
 threshold = 92.5             # anything under this gets flagged
+recent_days = 7              # "Tests & Big Grades" covers grades marked in this many days
+zero_days = 30               # zeros drop off after this many days (Missing/Incomplete never do)
+# Grading categories that count as tests and other big grades (a regular expression).
+major = "exam|test|midterm|final|assessment|essay|project|portfolio"
+
+[gpa]
+# The page-4 estimate from current grades on a 4.0 scale. Weighted GPA adds this many
+# percentage points to classes whose names match `weighted`, then converts again.
+weighted_bonus = 5
+weighted = "\\bAccelerated\\b|\\bAP\\b|\\bHonors\\b"
 
 [schoology]
 domain = "pembroke.schoology.com"
@@ -71,6 +81,39 @@ styles = [
 [printer]
 name = ""                    # printer name; blank uses the default printer
 
+[price]
+# The front page's price is what the issue cost to make: paper plus the API calls.
+paper_per_100_sheets = 2.40
+
+[social]
+# Public numbers only (no logins). TikTok's pay is estimated from views gained since the
+# last paper: views x tiktok_qualified x tiktok_rpm dollars per 1,000 qualified views.
+tiktok = "zenithwhatif"
+instagram = "zenith.whatif"
+tiktok_qualified = 0.35
+tiktok_rpm = 0.26
+
+[spend]
+# Neither API key can report its own balance, so copy each one in with the date you
+# read it (console.anthropic.com → Billing; aistudio.google.com → Billing). Page 4
+# subtracts what the paper has spent since then. 0 = show spending only.
+anthropic_credit = 0.00
+anthropic_since = "2026-10-12"
+gemini_credit = 0.00
+gemini_since = "2026-10-12"
+
+[claude]
+# Claude Code logins on this PC: their weekly limits and overnight sessions go on page 4.
+# Blank config_dir is the usual login. Sign the second account in once with:
+#   CLAUDE_CONFIG_DIR=~/.claude-2 claude      (then type /login)
+accounts = [
+  { name = "Claude", config_dir = "" },
+  { name = "Claude (2nd)", config_dir = "~/.claude-2" },
+]
+
+[overnight]
+since = "21:00"              # "While You Slept" covers Claude sessions from this time last night
+
 # Countdowns on the front page: the next three still to come. Add school breaks,
 # birthdays, trips, the last day of school...
 [[countdown]]
@@ -88,3 +131,10 @@ date = "2026-12-25"
 [[countdown]]
 name = "New Year's Day"
 date = "2027-01-01"
+
+[archive]
+# Every issue on a passcode-locked website (python -m paper archive publish). The pages are
+# encrypted with this passcode; a longer one is much harder to guess than 4 digits.
+passcode = ""
+repo = ""                    # GitHub repo for the site, like "viaate/olivia-times-archive"
+publish = false              # true = push the site after every morning's build

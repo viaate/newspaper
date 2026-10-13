@@ -12,12 +12,12 @@
 import argparse
 import json
 import shutil
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import comic, config, grades, images, printer, puzzles, render, writer
+from . import comic, config, grades, images, printer, puzzles, render, spend, writer
 from .dates import fmt
-from .sources import calendars, gmail, lunch, news, schoology, sports, weather
+from .sources import ai_usage, calendars, codex, gmail, lunch, news, overnight, schoology, social, sports, weather
 
 SAMPLE = Path(__file__).resolve().parent / "sample.json"
 
@@ -93,10 +93,30 @@ def _photos(cfg, today, stories, news_items):
     return found
 
 
+def _volume_and_number(cfg, today):
+    """A new volume every January 1, and issue numbers that start over with it."""
+    first = date.fromisoformat(cfg["paper"].get("first_issue", today.isoformat()))
+    start = max(first, date(today.year, 1, 1))
+    return today.year - first.year + 1, (today - start).days + 1
+
+
+def _money(gumroad, socials, now):
+    day_ago, month_ago = now - timedelta(days=1), now - timedelta(days=30)
+    return {
+        "tiktok": (socials.get("tiktok") or {}).get("earned"),
+        "tiktok_hours": (socials.get("tiktok") or {}).get("hours"),
+        "gumroad_day": sum(g["amount"] for g in gumroad if g["when"] >= day_ago),
+        "gumroad_day_count": sum(1 for g in gumroad if g["when"] >= day_ago),
+        "gumroad_month": sum(g["amount"] for g in gumroad if g["when"] >= month_ago),
+        "gumroad_month_count": sum(1 for g in gumroad if g["when"] >= month_ago),
+    }
+
+
 def build(cfg, sample=False, today=None, png=False):
     today = today or date.today()
     cfg["out_dir"].mkdir(parents=True, exist_ok=True)
     notes = []
+    ledger_start = spend.mark(cfg)  # this issue's API costs are what's added after here
 
     # One bad source shouldn't stop the paper, so each is fetched on its own.
     forecast, stories = None, {"tech": [], "local": [], "world": []}
@@ -121,7 +141,7 @@ def build(cfg, sample=False, today=None, png=False):
     except Exception as e:
         print(f"sports: {e}")
 
-    sample_copy, packages, events = None, [], []
+    sample_copy, packages, events, limits, slept, gumroad, socials, codex_limits = None, [], [], [], [], [], {}, None
     if sample:
         courses, week, mail, sample_copy = _load_sample(today)
         chiefs = chiefs or json.loads(SAMPLE.read_text(encoding="utf-8")).get("chiefs")
@@ -137,7 +157,7 @@ def build(cfg, sample=False, today=None, png=False):
                 print(f"schoology: {e}")
         try:
             got = gmail.fetch(cfg)
-            mail, packages = got["emails"], got["packages"]
+            mail, packages, gumroad = got["emails"], got["packages"], got["gumroad"]
         except Exception as e:
             notes.append("Couldn't read email this morning.")
             print(f"gmail: {e}")
@@ -146,15 +166,32 @@ def build(cfg, sample=False, today=None, png=False):
         except Exception as e:
             notes.append("Couldn't read the calendar this morning.")
             print(f"calendar: {e}")
+        try:
+            limits = ai_usage.claude_limits(cfg)
+        except Exception as e:
+            print(f"claude limits: {e}")
+        try:
+            codex_limits = codex.limits(cfg)
+        except Exception as e:
+            print(f"codex limits: {e}")
+        try:
+            slept = overnight.sessions(cfg)
+        except Exception as e:
+            print(f"overnight: {e}")
+        try:
+            socials = social.fetch(cfg)
+        except Exception as e:
+            print(f"social: {e}")
 
     threshold = cfg["grades"]["threshold"]
     courses = grades.annotate(courses, threshold, cfg["data_dir"], today, save=not sample)
+    gpa = grades.gpa(courses, cfg)
     style = comic.style_for(today, cfg["comic"]["styles"])
     print_time = _print_time(cfg, today)
     ctx = {
         "today": today, "threshold": threshold, "courses": courses, "week": week,
         "emails": mail, "packages": packages, "calendar": events, "weather": forecast, "news": stories,
-        "lunch": menu, "chiefs": chiefs,
+        "lunch": menu, "chiefs": chiefs, "overnight": slept, "gumroad": gumroad, "socials": socials,
     }
 
     edition = writer.write(cfg, ctx, style, print_time)
@@ -175,7 +212,12 @@ def build(cfg, sample=False, today=None, png=False):
         strip = Path(drawn).as_uri() if drawn else None
 
     p = cfg["paper"]
-    first = date.fromisoformat(p.get("first_issue", today.isoformat()))
+    volume, number = _volume_and_number(cfg, today)
+    pages = 4
+    api = spend.since(cfg, ledger_start)
+    paper_cost = pages * cfg.get("price", {}).get("paper_per_100_sheets", 2.40) / 100
+    price = {"total": paper_cost + sum(api.values()), "paper": paper_cost,
+             "writing": api["anthropic"], "comic": api["gemini"]}
     out_pdf = cfg["out_dir"] / f"{today}{'-sample' if sample else ''}.pdf"
     render.render({
         "paper": p,
@@ -184,7 +226,12 @@ def build(cfg, sample=False, today=None, png=False):
         "lunch": menu,
         "campus": cfg.get("lunch", {}).get("campus", "").replace("-", " ").title(),
         "chiefs": chiefs,
-        "issue": max(1, (today - first).days + 1),
+        "issue": number,
+        "volume": volume,
+        "price": price,
+        "socials": socials,
+        "money": _money(gumroad, socials, datetime.now().astimezone()),
+        "cfg_social": cfg.get("social", {}),
         "today": today,
         "edition": edition,
         "weather": forecast,
@@ -200,6 +247,14 @@ def build(cfg, sample=False, today=None, png=False):
         "scrambles": scrambles,
         "answers": answers,
         "notes": notes,
+        "gpa": gpa,
+        "tests": sorted(({"course": c["course"], **r} for c in courses for r in c.get("recent", [])),
+                        key=lambda r: r["graded"], reverse=True),
+        "missing": [{"course": c["course"], **m} for c in courses for m in c["missing"]],
+        "limits": limits,
+        "codex": codex_limits,
+        "overnight": [{**o, "note": note} for o, note in zip(slept, edition.get("overnight", []) + [""] * len(slept))],
+        "spend": spend.summary(cfg, today),
     }, out_pdf, png=png)
     if not sample:
         shutil.copyfile(out_pdf, cfg["out_dir"] / "latest.pdf")
@@ -207,10 +262,24 @@ def build(cfg, sample=False, today=None, png=False):
     return out_pdf
 
 
+def _update_archive(cfg):
+    """Add the new issue to the archive site, and publish it if set up. Never stops the paper."""
+    a = cfg.get("archive", {})
+    if not a.get("passcode"):
+        return
+    try:
+        from . import archive
+        archive.build(cfg)
+        if a.get("publish") and a.get("repo"):
+            print(f"archive: published to {archive.publish(cfg)}")
+    except Exception as e:
+        print(f"archive: {type(e).__name__}: {e}")
+
+
 def main():
     ap = argparse.ArgumentParser(description="The morning paper.")
-    ap.add_argument("command", choices=["build", "print", "run", "avatar", "check"])
-    ap.add_argument("args", nargs="*", help="for avatar: make PHOTO... | pick LETTER")
+    ap.add_argument("command", choices=["build", "print", "run", "avatar", "check", "archive"])
+    ap.add_argument("args", nargs="*", help="for avatar: make PHOTO... | pick LETTER; for archive: publish")
     ap.add_argument("--sample", action="store_true", help="use sample grades, email and features")
     ap.add_argument("--png", action="store_true", help="also save PNGs of the pages")
     ap.add_argument("--date", type=date.fromisoformat, help="pretend it's this date (YYYY-MM-DD)")
@@ -233,11 +302,20 @@ def main():
             ap.error("use: avatar make PHOTO... | avatar pick LETTER")
         return
 
+    if args.command == "archive":
+        from . import archive
+        print(f"archive: {archive.build(cfg)} new or changed issues in site/")
+        if args.args[:1] == ["publish"]:
+            print(f"archive: published to {archive.publish(cfg)}")
+        return
+
     today = args.date or date.today()
     pdf = cfg["out_dir"] / f"{today}{'-sample' if args.sample else ''}.pdf"
     # `print` builds first if this morning's paper isn't there, so it never reprints yesterday's.
     if args.command in ("build", "run") or not pdf.exists():
         pdf = build(cfg, sample=args.sample, today=today, png=args.png)
+        if not args.sample:
+            _update_archive(cfg)
     if args.command in ("print", "run"):
         printer.send(pdf, cfg["printer"].get("name", ""))
         print(f"sent {pdf} to the printer")

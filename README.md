@@ -1,13 +1,14 @@
 # The Olivia Times
 
-A three-page newspaper, written fresh every morning and printed on letter paper next to the
+A four-page newspaper, written fresh every morning and printed on letter paper next to the
 bed, so the day starts without a phone. Inspired by Karen X. Cheng's newspaper bot.
 
 | Page | What's on it |
 |---|---|
-| **A1 · Front page** | A headline about your day; today's agenda (calendar events, what's due, anything an email says is today); Grade Watch (classes under 92.5 flagged, with what would fix them and the change since yesterday); the week ahead; today's school lunch (Ward Parkway); weather with what to wear; Snow Day Watch; packages arriving today; emails that need a look; last night's Chiefs score (only after a game); countdowns |
+| **A1 · Front page** | A headline about your day; today's agenda (calendar events, what's due, anything an email says is today); Grade Watch (classes under 92.5, with what would fix them and the change since yesterday); today's school lunch (Ward Parkway); weather with what to wear; Snow Day Watch; packages arriving today; emails that need a look; last night's Chiefs score (only after a game); countdowns |
 | **A2 · The Briefing** | Five tech stories with newsprint photos, Kansas City news, and the world in brief |
 | **A3 · Puzzles & Funnies** | A black-and-white daily comic starring your cartoon avatar, drawn in a different adult cartoon's style each day; a crossword built from your week; a "Dear Olivia" advice column; a jumble; classifieds; yesterday's answers |
+| **A4 · The Ledger** | Report card for every class with an estimated GPA (unweighted and weighted); tests and big grades marked this week; everything missing or zeroed, including what Schoology's Missing tab skips; the week ahead with tests in bold; what Claude worked on overnight; how much of each Claude account's limits is used; what the Claude and Gemini keys have spent and what's left; money in (Gumroad sales from email, and an estimate of TikTok pay); TikTok and Instagram followers and views |
 
 It prints at 6:50 on weekdays and 7:30 on weekends. Claude Haiku 5.5 writes the words. Grades,
 dates and times are printed exactly as Schoology, your calendar and your email give them; the
@@ -18,9 +19,9 @@ writer is told never to invent or round them.
 | | |
 |---|---|
 | Printer | Brother black-and-white laser (HL-L2400 series or similar), about $90–130. Get one that says AirPrint. |
-| Paper and toner | About 3 sheets a day, roughly $2–3 a month |
-| Writing (Claude Haiku 5.5) | About a penny a day; $20 of credit lasts years |
-| Comic (Gemini image model) | About 5–10¢ a comic, so $2–3 a month; optional |
+| Paper and toner | About 4 sheets a day, roughly $2–3 a month |
+| Writing (Claude Haiku 5.5) | About 2¢ a day; $20 of credit lasts years |
+| Comic (Gemini image model) | About 10¢ a comic, so about $3 a month; optional |
 | Weather, news, calendar, lunch menu, Chiefs scores, Schoology | Free |
 
 ## Setup
@@ -96,7 +97,48 @@ lpadmin -p brother -E -v ipp://PRINTER-IP/ipp/print -m everywhere
 and set `name = "brother"` under `[printer]` in `config.toml`. Leave it blank to use the default
 printer.
 
-### 5. Try it
+### 5. Page 4 extras
+
+- **What's left on each key.** Neither key can report its own balance, so copy them into
+  `[spend]` in `config.toml` with the date you read them (console.anthropic.com → Billing,
+  aistudio.google.com → Billing). The paper keeps a ledger of what it spends in
+  `data/spend.json` and subtracts it.
+- **A second Claude account.** Sign it in once in its own folder:
+  `CLAUDE_CONFIG_DIR=~/.claude-2 claude`, then type `/login`. Its limits and overnight sessions
+  then show up next to the first account's. Limits are read by running one tiny Claude Code
+  turn per account each morning.
+- **Overnight Claude sessions.** Sessions that ran on this PC are read straight from Claude
+  Code's history. claude.ai/code sessions come from the routine "Olivia Times: overnight
+  digest" (claude.ai/code → Routines), which wakes a session at 6:05 each morning that lists
+  last night's sessions and writes `data/overnight/cloud-main.json`.
+
+- **Socials and money.** Public numbers only, no logins: TikTok followers, likes and views
+  (via yt-dlp), and Instagram's rounded follower count. TikTok pay is estimated from views
+  gained since the last paper × `tiktok_qualified` × `tiktok_rpm` per 1,000 (`[social]`).
+  Gumroad sales come from its "New sale of … for $…" emails.
+- **The price.** The front page's price is what that issue cost to make: paper
+  (`[price] paper_per_100_sheets`) plus that morning's Claude and Gemini calls. A new
+  volume starts every January 1, and issue numbers start over with it.
+
+### 6. The archive
+
+Every issue is kept in `out/`, and `python -m paper archive` turns them into a website: a
+masthead, a month-by-month grid of front pages with their headlines, search, and a page
+reader. Each page is encrypted with the passcode under `[archive]` in `config.toml`, so the
+site can live on GitHub Pages without anyone reading it. (A 4-digit code keeps out the
+curious; a longer one keeps out the determined.)
+
+To publish it every morning:
+
+1. Make a public repo for it, like `times-archive`, then turn on Pages for it
+   (Settings → Pages → Deploy from a branch → `main`, `/ (root)`).
+2. Make a fine-grained token at github.com/settings/personal-access-tokens: only that
+   repo, with Contents and Pages set to Read and write. Put it in `.env` as
+   `ARCHIVE_GITHUB_TOKEN`.
+3. Under `[archive]`, set `repo = "you/times-archive"` and `publish = true`, then run
+   `.venv/bin/python -m paper archive publish` once.
+
+### 7. Try it
 
 ```
 .venv/bin/python -m paper build --sample   # sample grades and email; makes out/<date>-sample.pdf
@@ -117,7 +159,12 @@ paper/
   sources/lunch.py      today's menu from the Pembroke Hill dining page
   sources/sports.py     yesterday's Chiefs game from ESPN's public feed
   sources/news.py       The Verge, TechCrunch, Hacker News, KCUR, KSHB, BBC
-  grades.py             under-92.5 flags and day-over-day changes
+  sources/ai_usage.py   each Claude account's 5-hour and weekly limits, via Claude Code
+  sources/overnight.py  Claude sessions since last night, from this PC and the morning routine
+  grades.py             under-92.5 flags, day-over-day changes and the GPA estimate
+  sources/social.py     public TikTok and Instagram numbers, and the TikTok pay estimate
+  spend.py              the ledger of what the Claude and Gemini keys spend
+  archive.py            the passcode-locked archive site (templates/archive.html)
   writer.py             Claude Haiku 5.5 writes all three pages (structured output)
   comic.py              the daily strip and the avatar, via Gemini
   puzzles.py            crossword layout, jumble, yesterday's answers

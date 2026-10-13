@@ -63,6 +63,9 @@ PACKAGE_QUERY = (
 )
 
 
+GUMROAD_SALE = re.compile(r"New sale of (.+) for \$([\d,]+(?:\.\d+)?)")
+
+
 def _search(imap, query, limit):
     _, found = imap.search(None, "X-GM-RAW", f'"{query}"')
     for num in reversed(found[0].split()[-limit:]):  # newest first
@@ -105,11 +108,22 @@ def latest_digest(imap, subject):
     return max(digests, key=lambda m: m["when"] or datetime.min.replace(tzinfo=timezone.utc), default=None)
 
 
-def fetch(cfg, limit=40):
+def gumroad_sales(imap, days=31):
+    """Gumroad's "New sale of X for $Y" emails from the last month, archived or not."""
+    imap.select(f'"{_all_mail(imap)}"', readonly=True)
+    sales = []
+    for m in _search(imap, f"from:gumroad.com subject:(New sale) newer_than:{days}d", 500):
+        hit = GUMROAD_SALE.search(m["subject"])
+        if hit and m["when"]:
+            sales.append({"product": hit.group(1), "amount": float(hit.group(2).replace(",", "")), "when": m["when"]})
+    return sales
+
+
+def fetch(cfg, limit=200):
     """{"emails": recent mail plus the school digest, "packages": shipping notices}."""
     s = cfg["secrets"]
     if not (s["GMAIL_ADDRESS"] and s["GMAIL_APP_PASSWORD"]):
-        return {"emails": [], "packages": []}
+        return {"emails": [], "packages": [], "gumroad": []}
     hours = cfg["email"].get("lookback_hours", 24)
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     digest_subject = cfg["email"].get("digest_subject", "")
@@ -126,20 +140,25 @@ def fetch(cfg, limit=40):
             if not (digest_subject and m["subject"].startswith(digest_subject))
             and not (m["when"] and m["when"].tzinfo and m["when"] < since)
         ]
-
-        # Local time, so "arriving tomorrow" sent last night reads correctly.
-        tz = ZoneInfo(cfg["paper"]["timezone"])
         packages = [{**m, "body": m["body"][:1200]} for m in _search(imap, PACKAGE_QUERY, 25)]
-        for m in packages:
+
+        # Local time, so "arriving tomorrow" sent last night reads correctly, and the
+        # writer can tell which of two emails about the same thing came last.
+        tz = ZoneInfo(cfg["paper"]["timezone"])
+        for m in mail + packages:
             if m["when"] and m["when"].tzinfo:
                 m["when"] = m["when"].astimezone(tz)
+
+        gumroad = gumroad_sales(imap)
+        for m in gumroad:
+            m["when"] = m["when"].astimezone(tz)
 
         # The school digest is usually filtered out of the inbox, so look in All Mail.
         if digest_subject:
             digest = latest_digest(imap, digest_subject)
             if digest:
                 mail.extend(_unpack_digest(digest["body"]) or [])
-        return {"emails": mail, "packages": packages}
+        return {"emails": mail, "packages": packages, "gumroad": gumroad}
     finally:
         try:
             imap.logout()

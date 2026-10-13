@@ -3,6 +3,7 @@
 config.toml
 data/
 out/
+site/
 
 # Fonts are downloaded from Google Fonts on first run.
 paper/fonts/

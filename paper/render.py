@@ -32,9 +32,32 @@ FIT_PAGES = """async () => {
 }"""
 
 
+# Upcoming work that's a test, set in bold on A4.
+TEST_LIKE = re.compile(r"\b(test|quiz|exam|assessment|midterm|final)\b", re.IGNORECASE)
+
+
+def roman(n):
+    out = ""
+    for value, numeral in ((1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"), (90, "XC"),
+                           (50, "L"), (40, "XL"), (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I")):
+        count, n = divmod(n, value)
+        out += numeral * count
+    return out
+
+
+def money(usd):
+    """Under a dollar in cents (23¢, 0.4¢), otherwise dollars ($1.05, $1,250)."""
+    if usd < 1:
+        return f"{usd * 100:.0f}¢" if usd >= 0.1 else f"{usd * 100:.1f}¢"
+    return f"${usd:,.2f}" if usd < 100 else f"${usd:,.0f}"
+
+
 def render(ctx, out_pdf, png=False):
     env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=select_autoescape())
     env.filters["fmt"] = fmt
+    env.tests["test_like"] = lambda title: bool(TEST_LIKE.search(title or ""))
+    env.filters["roman"] = roman
+    env.filters["money"] = money
     page_html = env.get_template("paper.html").render(
         **ctx, fonts=fonts.ensure(), font_dir=fonts.FONT_DIR.as_uri()
     )
