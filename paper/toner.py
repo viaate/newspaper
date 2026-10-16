@@ -1,8 +1,9 @@
 """How much toner is left, so the paper can say when to buy more.
 
-Read from the printer itself when CUPS has its supply level (driverless printers like the
-Brother report "marker-levels"); otherwise estimated from pages printed since the last
-cartridge, counted here. After putting in a new cartridge:
+Read from the printer itself: CUPS's saved copy of its "marker-levels" when the printer is
+a saved queue, otherwise by asking the printer over IPP with `ipptool` (its address from
+[printer] uri in config.toml, or found with `ippfind`). If neither works, estimated from
+pages printed since the last cartridge, counted here. After putting in a new cartridge:
     python -m paper toner reset [pages]   # pages it's rated for; default 1200 (TN830)
 """
 
@@ -45,27 +46,49 @@ def reset(cfg, rated_pages=TN830_PAGES):
     _write(cfg, {"rated_pages": rated_pages, "printed": 0, "since": date.today().isoformat()})
 
 
-def _reported(printer):
-    """The printer's own toner percentage via CUPS, or None if it doesn't report one."""
+def _run(cmd):
     try:
-        cmd = ["lpoptions"] + (["-p", printer] if printer else [])
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=10).stdout
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=20).stdout
     except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def _numbers(text):
+    values = [int(v) for v in re.split(r"[,\s]+", text.strip()) if v.lstrip("-").isdigit()]
+    return [v for v in values if 0 <= v <= 100]  # -1/-2/-3 mean unknown
+
+
+def _printer_uri(cfg):
+    if cfg["printer"].get("uri"):
+        return cfg["printer"]["uri"]
+    found = _run(["ippfind", "--ls"]).split()
+    return next((w for w in found if w.startswith("ipp")), "")
+
+
+def _reported(cfg):
+    """(percent, low_percent) from the printer itself, or None if it can't be read."""
+    printer = cfg["printer"].get("name", "")
+    saved = re.search(r"marker-levels=(\S+)", _run(["lpoptions"] + (["-p", printer] if printer else [])))
+    if saved and _numbers(saved.group(1).replace(",", " ")):
+        return min(_numbers(saved.group(1).replace(",", " "))), None
+    uri = _printer_uri(cfg)
+    if not uri:
         return None
-    levels = re.search(r"marker-levels=(\S+)", out)
-    if not levels:
+    out = _run(["ipptool", "-tv", uri, "get-printer-attributes.test"])
+    levels = re.search(r"marker-levels \(.*?\) = ([-\d, ]+)", out)
+    low = re.search(r"marker-low-levels \(.*?\) = ([-\d, ]+)", out)
+    if not levels or not _numbers(levels.group(1)):
         return None
-    values = [int(v) for v in levels.group(1).split(",") if v.lstrip("-").isdigit()]
-    values = [v for v in values if 0 <= v <= 100]  # -1/-2/-3 mean unknown
-    return min(values) if values else None
+    return min(_numbers(levels.group(1))), (max(_numbers(low.group(1))) if low and _numbers(low.group(1)) else None)
 
 
 def level(cfg):
-    """{"percent", "source": "printer" | "estimate", "low"}."""
-    percent = _reported(cfg["printer"].get("name", ""))
-    source = "printer"
-    if percent is None:
-        state = _state(cfg)
-        percent = max(0, round(100 * (1 - state["printed"] / max(1, state["rated_pages"]))))
-        source = "estimate"
-    return {"percent": percent, "source": source, "low": percent <= LOW}
+    """{"percent", "source": "printer" | "estimate", "low"}. "low" uses the printer's own
+    low mark when it gives one, else LOW."""
+    reported = _reported(cfg)
+    if reported:
+        percent, low_mark = reported
+        return {"percent": percent, "source": "printer", "low": percent <= (low_mark or LOW)}
+    state = _state(cfg)
+    percent = max(0, round(100 * (1 - state["printed"] / max(1, state["rated_pages"]))))
+    return {"percent": percent, "source": "estimate", "low": percent <= LOW}

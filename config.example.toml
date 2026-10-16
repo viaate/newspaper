@@ -92,6 +92,7 @@ styles = [
 
 [printer]
 name = ""                    # printer name; blank uses the default printer
+uri = ""                     # for toner levels, e.g. "ipp://BRW....local:631/ipp/print" (`ippfind --ls`); blank finds it
 
 [price]
 # The front page's price is what the issue cost to make: paper plus the API calls.
