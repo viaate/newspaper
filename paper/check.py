@@ -8,7 +8,7 @@ from datetime import date
 
 import requests
 
-from . import comic, spend, writer
+from . import comic, spend, toner, writer
 from .sources import ai_usage, calendars, codex, gmail, lunch, overnight, schoology, social, sports, weather
 
 OK, BAD, SKIP = "✓", "✗", "–"
@@ -161,4 +161,5 @@ def run(cfg):
     _try("Printer", printer_check)
     _try("Schedule", timers_check)
     _try("After reboot", reboot_check)
+    _try("Toner", lambda: (lambda t: f"{t['percent']}% left ({'from the printer' if t['source'] == 'printer' else 'estimated from pages printed'})")(toner.level(cfg)))
     print(f"\n  {OK} works   {BAD} needs fixing   {SKIP} not set up yet (that part is left out)")

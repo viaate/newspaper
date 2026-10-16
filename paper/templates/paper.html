@@ -125,6 +125,7 @@ img { display: block; }
 .week-table td { padding: 3pt 0; border-bottom: 0.4pt solid var(--hair); vertical-align: top; }
 .day-label { width: 0.95in; font-size: 6.4pt; font-weight: 700; padding-top: 3.4pt !important; }
 .course { font-weight: 600; }
+.toner-note { font-size: 8.6pt; border: 0.8pt solid var(--ink); padding: 4pt 5pt; }
 .lunch-line { font-size: 8.8pt; margin-bottom: 3pt; }
 .menu { columns: 3; column-gap: 10pt; font-size: 8pt; line-height: 1.28; }
 .menu div { break-inside: avoid; margin-bottom: 1.5pt; }
@@ -476,6 +477,11 @@ img { display: block; }
         <span class="{{ 'won' if chiefs.result == 'L' }}">{{ chiefs.opponent }} {{ chiefs.opponent_score }}</span>
       </div>
       <p class="score-note">{{ {'W': 'Beat', 'L': 'Lost to', 'T': 'Tied'}[chiefs.result] }} the {{ chiefs.opponent }} {{ 'at home' if chiefs.home else 'on the road' }} {{ chiefs.weekday }}.{% if chiefs.record %} Now {{ chiefs.record }}{% if chiefs.standing %}, {{ chiefs.standing }}{% endif %}.{% endif %}</p>
+      {% endif %}
+
+      {% if toner and toner.low %}
+      <h3 class="section-head"><span>Printer</span><span class="aside">Toner</span></h3>
+      <p class="toner-note"><b>Toner is at {{ toner.percent }}%{% if toner.source == 'estimate' %} (estimated){% endif %}.</b> Time to order a Brother TN830 cartridge (the TN830XL lasts longer).</p>
       {% endif %}
 
       {% if countdowns %}

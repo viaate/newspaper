@@ -15,7 +15,7 @@ import shutil
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import comic, config, grades, headlines, images, printer, puzzles, render, seen, spend, writer
+from . import comic, config, covered, grades, headlines, images, printer, puzzles, render, seen, spend, toner, writer
 from . import week as weekly
 from .dates import fmt
 from .sources import ai_usage, calendars, codex, gmail, lunch, news, overnight, schoology, social, sports, weather
@@ -222,6 +222,7 @@ def build(cfg, sample=False, today=None, png=False):
         "lunch": menu, "chiefs": chiefs, "overnight": slept, "gumroad": gumroad, "socials": socials,
         "teacher_notes": notes_from_teachers, "week_review": week_review,
         "past_titles": headlines.load(cfg, today),
+        "covered": covered.for_writer(covered.load(cfg, today)),
         "past_stories": [r["headline"] for r in printed if (today - date.fromisoformat(r["date"])).days <= 10],
         # No lunch menu (no school, or a weekend) and no Sunday review leaves the front page's lower half free.
         "front_page_has_room": not (menu and not menu.get("no_school")) and not week_review,
@@ -233,6 +234,7 @@ def build(cfg, sample=False, today=None, png=False):
     if not sample:
         headlines.save(cfg, today, edition)
         seen.save(cfg, today, edition, stories)
+        covered.save(cfg, today, edition)
     # What was written, kept beside the PDF (handy for fixing a layout without rewriting it).
     (cfg["out_dir"] / f"{today}{'-sample' if sample else ''}.json").write_text(json.dumps(edition, indent=1, default=str), encoding="utf-8")
 
@@ -269,6 +271,7 @@ def build(cfg, sample=False, today=None, png=False):
         "paper": p,
         "print_time": print_time,
         "countdowns": _countdowns(cfg, today),
+        "toner": toner.level(cfg),
         "lunch": menu,
         "campus": cfg.get("lunch", {}).get("campus", "").replace("-", " ").title(),
         "chiefs": chiefs,
@@ -327,7 +330,7 @@ def _update_archive(cfg):
 
 def main():
     ap = argparse.ArgumentParser(description="The morning paper.")
-    ap.add_argument("command", choices=["build", "print", "run", "avatar", "check", "archive", "catchup"])
+    ap.add_argument("command", choices=["build", "print", "run", "avatar", "check", "archive", "catchup", "toner"])
     ap.add_argument("args", nargs="*", help="for avatar: make PHOTO... | pick LETTER; for archive: publish")
     ap.add_argument("--sample", action="store_true", help="use sample grades, email and features")
     ap.add_argument("--png", action="store_true", help="also save PNGs of the pages")
@@ -335,6 +338,14 @@ def main():
     ap.add_argument("--config", help="path to config.toml")
     args = ap.parse_args()
     cfg = config.load(args.config)
+
+    if args.command == "toner":
+        if args.args[:1] == ["reset"]:
+            toner.reset(cfg, int(args.args[1]) if len(args.args) > 1 else toner.TN830_PAGES)
+            print("Toner count reset for a new cartridge.")
+        lvl = toner.level(cfg)
+        print(f"Toner: {lvl['percent']}% left ({'from the printer' if lvl['source'] == 'printer' else 'estimated from pages printed'})")
+        return
 
     if args.command == "check":
         from . import check
@@ -375,6 +386,7 @@ def main():
             _update_archive(cfg)
     if args.command in ("print", "run"):
         printer.send(pdf, cfg["printer"].get("name", ""))
+        toner.count_pages(cfg, pdf)
         print(f"sent {pdf} to the printer")
 
 
