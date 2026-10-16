@@ -126,7 +126,7 @@ After=network-online.target
 Type=forking
 WorkingDirectory=$ROOT
 Environment=PATH=$(dirname "$CLAUDE_BIN"):/usr/local/bin:/usr/bin:/bin
-ExecStart=$TMUX_BIN new-session -d -s paper -c $ROOT $CLAUDE_BIN remote-control
+ExecStart=$TMUX_BIN new-session -d -s paper -c $ROOT $CLAUDE_BIN remote-control --spawn=same-dir --name bazzite-newspaper
 ExecStop=$TMUX_BIN kill-session -t paper
 Restart=on-failure
 RestartSec=30
@@ -135,8 +135,10 @@ RestartSec=30
 WantedBy=default.target
 EOF
   systemctl --user daemon-reload
-  # Replace a hand-started tmux session so the service owns it.
+  # Only one remote-control may serve a folder: stop any started by hand so the service owns it.
   "$TMUX_BIN" kill-session -t paper 2>/dev/null || true
+  pkill -f "claude remote-control" 2>/dev/null || true
+  sleep 2
   systemctl --user enable olivia-times-claude.service
   systemctl --user restart olivia-times-claude.service
 fi
