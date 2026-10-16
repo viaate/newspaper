@@ -1,5 +1,6 @@
 """`python -m paper check`: test every key and connection, without printing any secrets."""
 
+import getpass
 import imaplib
 import shutil
 import subprocess
@@ -95,6 +96,18 @@ def run(cfg):
             return SKIP, "no printer set up yet (see README, step 4)"
         return f"using {wanted or default.split(':')[-1].strip() or printers[0]} (found: {', '.join(printers)})"
 
+    def reboot_check():
+        user = getpass.getuser()
+        linger = subprocess.run(["loginctl", "show-user", user, "-p", "Linger", "--value"],
+                                capture_output=True, text=True).stdout.strip()
+        if linger != "yes":
+            raise RuntimeError(f"timers stop when you log out or reboot; run: sudo loginctl enable-linger {user}")
+        claude = subprocess.run(["systemctl", "--user", "is-active", "olivia-times-claude.service"],
+                                capture_output=True, text=True).stdout.strip()
+        if claude == "active":
+            return "paper and Claude remote-control both restart on their own"
+        return "paper restarts on its own; Claude remote-control isn't a service (rerun scripts/install.sh)"
+
     def timers_check():
         out = subprocess.run(
             ["systemctl", "--user", "list-timers", "olivia-times-*", "--no-pager", "--no-legend"],
@@ -147,4 +160,5 @@ def run(cfg):
     _try("Chromium", chromium_check)
     _try("Printer", printer_check)
     _try("Schedule", timers_check)
+    _try("After reboot", reboot_check)
     print(f"\n  {OK} works   {BAD} needs fixing   {SKIP} not set up yet (that part is left out)")

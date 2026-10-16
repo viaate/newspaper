@@ -110,6 +110,36 @@ EOF
 
 systemctl --user daemon-reload
 systemctl --user enable --now olivia-times-build.timer olivia-times-print.timer olivia-times-catchup.timer
+
+# If Claude Code is installed, keep a remote-control session running in tmux, started
+# again after every reboot, so it stays reachable from the Claude app.
+CLAUDE_BIN="$(command -v claude || echo "$HOME/.local/bin/claude")"
+TMUX_BIN="$(command -v tmux || true)"
+if [ -x "$CLAUDE_BIN" ] && [ -n "$TMUX_BIN" ]; then
+  cat > "$UNITS/olivia-times-claude.service" <<EOF
+[Unit]
+Description=Claude remote-control for The Olivia Times
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=forking
+WorkingDirectory=$ROOT
+Environment=PATH=$(dirname "$CLAUDE_BIN"):/usr/local/bin:/usr/bin:/bin
+ExecStart=$TMUX_BIN new-session -d -s paper -c $ROOT $CLAUDE_BIN remote-control
+ExecStop=$TMUX_BIN kill-session -t paper
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target
+EOF
+  systemctl --user daemon-reload
+  # Replace a hand-started tmux session so the service owns it.
+  "$TMUX_BIN" kill-session -t paper 2>/dev/null || true
+  systemctl --user enable olivia-times-claude.service
+  systemctl --user restart olivia-times-claude.service
+fi
 # Keep the timers running when nobody is logged in.
 loginctl enable-linger "$USER" 2>/dev/null || echo "(Run 'sudo loginctl enable-linger $USER' so it prints even when you're logged out.)"
 
